@@ -1,0 +1,112 @@
+{# Кабинет партнёра, «Ваш канал»: шапка канала, цифры, шаги настройки, комментарии под постами, реферальная ссылка #}
+<style>
+.pc{margin-bottom:32px}
+.pc .top{display:flex;align-items:center;gap:14px;margin-bottom:16px}
+.pc .ava{width:48px;height:48px;border-radius:50%;background:var(--accent-soft);color:var(--accent);flex:none;
+  display:flex;align-items:center;justify-content:center;font-weight:700;font-size:20px}
+.pc .name{flex:1;min-width:0}
+.pc .name b{font-size:20px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pc .name a,.pc .name span{font-size:14px}
+.pc .state{text-align:right}
+.pc .state .badge{font-size:13px;padding:4px 12px}
+.pc .state .muted{font-size:12px;margin-top:4px}
+.pc .grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+.pc .stat a{font-size:13px;display:inline-block;margin-top:4px}
+.pc .stat small{display:block;color:var(--muted);font-size:12px;margin-top:2px}
+.pc h3{margin:0 0 12px}
+.pc .steps{display:grid;gap:14px}
+.pc .step{display:grid;grid-template-columns:24px 1fr;gap:10px;align-items:start}
+.pc .dot{width:22px;height:22px;border-radius:50%;border:1.5px solid var(--text-3);display:grid;place-content:center;margin-top:1px}
+.pc .step.done .dot{background:var(--green);border-color:var(--green)}
+.pc .step.done .dot::after{content:"";width:10px;height:6px;border:2px solid #fff;border-top:0;border-right:0;
+  transform:rotate(-45deg) translate(1px,-1px)}
+.pc .step.done .t{color:var(--muted)}
+.pc .step.now .dot{border-color:var(--orange);border-width:2px}
+.pc .step .s{font-size:13px;color:var(--muted);margin-top:2px}
+.pc .step .btn{margin-top:8px;font-size:14px;padding:6px 14px}
+.pc .row{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.pc .row .grow{flex:1;min-width:220px}
+.pc .link{flex:1;min-width:0;padding:8px 12px;border-radius:10px;user-select:all;font-size:14px}
+.pc .note{font-size:13px;color:var(--muted);margin-top:8px}
+@media (max-width:900px){.pc .grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:640px){.pc .top{flex-wrap:wrap}.pc .state{text-align:left;width:100%}}
+</style>
+{% for p in pairs %}{% set ch, r, ri = p.channel, p.ref, p.ref_info %}
+<section class="pc">
+  <div class="top">
+    <div class="ava">{{ (ch.title or '?')[:1]|upper }}</div>
+    <div class="name">
+      <b>{{ ch.title }}</b>
+      {% if ch.username %}<a href="https://t.me/{{ ch.username }}" target="_blank" rel="noopener">@{{ ch.username }}</a>{% endif %}
+    </div>
+    <div class="state">
+      {% if not p.left %}<span class="badge on">Работает</span>
+      {% elif p.left == 1 and not ch.comments_on %}<span class="badge off">Выключено</span>
+      {% else %}<span class="badge waiting">Нужна настройка · {{ p.left }} {{ 'шаг' if p.left == 1 else 'шага' }}</span>{% endif %}
+      {% if ch.last_comment_at %}<div class="muted">последний комментарий {{ ch.last_comment_at|msk }}</div>{% endif %}
+    </div>
+  </div>
+
+  {% if r %}
+  <div class="grid">
+    <div class="card stat"><div class="muted">Баланс</div><div class="v">{{ ri.balance|usd }}</div>
+      <a href="{{ A }}/withdraw">Вывести →</a></div>
+    <div class="card stat"><div class="muted">Заработано всего</div><div class="v">{{ ri.earned|usd }}</div>
+      <a href="{{ A }}/channels/{{ ch.id }}/referral">История →</a></div>
+    <div class="card stat"><div class="muted">Приведено людей</div><div class="v">{{ ri.users }}</div></div>
+    <div class="card stat"><div class="muted">Ваша доля</div>
+      <div class="v">{{ '%g' % (r.revenue_percent if r.revenue_percent is not none else 15) }}%</div>
+      <small>от стоимости каждой успешной активации приглашённых вами людей</small></div>
+  </div>
+  {% endif %}
+
+  {% if p.left %}
+  <div class="card">
+    <h3>Чтобы бот начал комментировать посты</h3>
+    <div class="steps">
+      {% set ns = namespace(now=false) %}
+      {% for s in p.steps %}
+      {% set now = not s.done and not ns.now %}{% if now %}{% set ns.now = true %}{% endif %}
+      <div class="step{{ ' done' if s.done }}{{ ' now' if now }}">
+        <div class="dot"></div>
+        <div>
+          <div class="t">{{ s.title }}</div>
+          {% if s.sub and not s.done %}<div class="s">{{ s.sub }}</div>{% endif %}
+          {% if not s.done and s.url %}<a class="btn{{ '' if now else ' secondary' }}" href="{{ s.url }}" target="_blank" rel="noopener">{{ s.url_title }}</a>{% endif %}
+          {% if not s.done and s.page == 'messages' %}<a class="btn{{ '' if now else ' secondary' }}" href="{{ A }}/channels/{{ ch.id }}/messages">{{ s.page_title }}</a>{% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="card">
+    <div class="row">
+      <div class="grow">
+        <h3 style="margin:0">Комментарии под постами</h3>
+        <div class="muted" style="font-size:13px;margin-top:2px">Сообщений: {{ p.count }} из {{ max_messages }} · под каждым
+          новым постом бот оставляет одно из них, выбранное случайно</div>
+      </div>
+      <a class="btn secondary" href="{{ A }}/channels/{{ ch.id }}/messages">Редактировать сообщения</a>
+      <form method="post" action="{{ A }}/channels/{{ ch.id }}" class="inline" title="Комментировать новые посты">
+        <input type="checkbox" class="switch" name="comments_on" aria-label="Комментировать новые посты"
+          onchange="this.form.submit()" {{ 'checked' if ch.comments_on }}>
+      </form>
+    </div>
+    {% if ch.comments_on and ch.last_error %}<div class="bad" style="font-size:13px;margin-top:10px">Последняя ошибка: {{ ch.last_error }}</div>{% endif %}
+  </div>
+
+  {% if p.ref_link %}
+  <div class="card">
+    <h3>Ваша реферальная ссылка</h3>
+    <div class="row">
+      <code class="link">{{ p.ref_link }}</code>
+      <button type="button" class="secondary" onclick="navigator.clipboard.writeText('{{ p.ref_link }}').then(() => { this.textContent = 'Скопировано'; setTimeout(() => this.textContent = 'Копировать', 1500) })">Копировать</button>
+    </div>
+    <div class="note">Эта ссылка уже стоит в кнопке под комментариями бота. Можно делиться и ею самой — кто впервые откроет
+      бота по ней, закрепится за вами навсегда.</div>
+  </div>
+  {% endif %}
+</section>
+{% endfor %}

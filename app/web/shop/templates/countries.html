@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}{{ s.name }} — {{ tr('countries_title') }}{% endblock %}
+{% block style %}
+.ctry .fl{width:34px;display:grid;place-items:center;flex:none}
+.ctry .price{font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.ctry .cnt{color:var(--dim);font-size:13px;white-space:nowrap}
+.tools{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;margin:16px 0}
+@media (max-width:640px){.tools{grid-template-columns:1fr}}
+{% endblock %}
+{% block content %}
+<a class="back" href="{{ P }}/s/{{ s.id }}">‹ {{ s.name }} · {{ tr('auto') }}</a>
+<h1>{{ s.name }}: {{ tr('countries_title')|lower }}</h1>
+<p class="muted small" style="margin-top:6px">{{ tr('countries_hint') }}</p>
+<div class="tools">
+  <form class="search" method="get"><svg><use href="#i-search"/></svg>
+    <input type="search" name="q" value="{{ q }}" placeholder="{{ tr('find_country') }}" autocomplete="off" id="c-q">
+    <input type="hidden" name="sort" value="{{ sort }}"></form>
+  <div class="tabs">
+    {% for key, label in (('popular', 'sort_popular'), ('cheap', 'sort_cheap'), ('expensive', 'sort_expensive')) %}
+    <a href="?sort={{ key }}{{ '&q=' ~ q if q }}" class="{{ 'on' if sort == key }}">{{ tr(label) }}</a>{% endfor %}
+  </div>
+</div>
+{% if rows %}
+<div class="list" id="c-list">
+  {% for c, qt in rows %}
+  <a class="ctry" href="{{ P }}/s/{{ s.id }}/c/{{ c.id }}" data-name="{{ c.name|lower }} {{ ename(c)|lower }}">
+    <span class="fl">{{ flag(c) }}</span><span class="grow">{{ cname(c) }}</span>
+    <span class="cnt">{{ qty(qt.count) }}</span><span class="price">{{ tr('from_price', price=qt.price|rub) }}</span><span class="chev">›</span>
+  </a>
+  {% endfor %}
+</div>
+<div class="empty hide" id="c-none"><b>{{ tr('nothing_found') }}</b></div>
+{% else %}
+<div class="empty"><b>{{ tr('nothing_found') if q else tr('no_activations') }}</b></div>
+{% endif %}
+{% endblock %}
+{% block script %}
+<script>
+(function(){
+  var q=document.getElementById('c-q'),l=document.getElementById('c-list'),none=document.getElementById('c-none');
+  if(!q||!l)return;
+  q.addEventListener('input',function(){
+    var v=q.value.trim().toLowerCase(),n=0;
+    l.querySelectorAll('a').forEach(function(a){var on=!v||a.dataset.name.indexOf(v)>=0;a.classList.toggle('hide',!on);if(on)n++});
+    none.classList.toggle('hide',n>0);
+  });
+})();
+</script>
+{% endblock %}

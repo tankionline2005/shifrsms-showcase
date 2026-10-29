@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% import "_money.html" as m %}
+{% block content %}
+{{ m.styles() }}
+<h1>Пользователь {{ user.id }} {% if user.username %}(@{{ user.username }}){% endif %}</h1>
+{% if user.login or user.id >= 9000000000000000 %}<p class="muted">{% if user.id >= 9000000000000000 %}Только сайт (без Telegram) · {% endif %}{% if user.login %}логин на сайте <code>{{ user.login }}</code>{% endif %}{% if user.api_key_hint %} · ключ API ••••{{ user.api_key_hint }}{% endif %}</p>{% endif %}
+<div class="grid">
+  <div class="card stat"><div class="muted">Баланс</div><div class="v">{{ user.balance|rub }}</div></div>
+  <div class="card stat"><div class="muted">Статус</div><div class="v {{ 'bad' if user.is_blocked else 'ok' }}">{{ 'Заблокирован' if user.is_blocked else 'Активен' }}</div>
+    <form method="post" action="{{ A }}/users/{{ user.id }}/block" style="margin-top:8px"><button class="secondary">{{ 'Разблокировать' if user.is_blocked else 'Заблокировать' }}</button></form>
+  </div>
+  {% for kind, url, title in came_from %}<div class="card stat"><div class="muted">{{ 'Пришёл от реферала' if kind == 'channel' else 'Пригласил' }}{% if came_from|length > 1 %} · доля пополам{% endif %}</div>
+    <div class="v" style="font-size:16px"><a href="{{ url }}">{{ title }}</a></div></div>{% endfor %}
+  {% if invites.invited %}<div class="card stat"><div class="muted">Пригласил сам</div>
+    <div class="v"><a href="{{ A }}/users?q=inviter:{{ user.id }}">{{ invites.invited }}</a></div>
+    <div class="muted" style="font-size:13px;margin-top:4px">покупали {{ invites.buyers }} · заработал {{ invites.earned|rub }}</div></div>{% endif %}
+  {% if user.utm %}<div class="card stat"><div class="muted">Пришёл по метке</div>
+    <div class="v" style="font-size:16px"><a href="{{ A }}/utm?days=0">{{ user.utm }}</a></div></div>{% endif %}
+</div>
+<div class="card">
+  <b>Изменить баланс</b>
+  {% if error %}<div class="notice bad" style="margin-top:8px">{{ error }}</div>{% endif %}
+  {% if saved %}<div class="notice ok" style="margin-top:8px">{{ saved }}</div>{% endif %}
+  {% if request.state.owner %}
+  <form class="inline" method="post" action="{{ A }}/users/{{ user.id }}/balance" style="margin-top:8px">
+    <input type="text" name="amount" placeholder="Сумма, напр. 100 или -50" required>
+    <input type="text" name="comment" placeholder="Комментарий" style="width:260px">
+    {{ m.code_field() }}
+    <button>Применить</button>
+  </form>
+  <div class="hint">Бонус пользователю — расход владельцев, поэтому нужен код аутентификатора.</div>
+  {% else %}<div class="hint" style="margin-top:8px">Менять баланс можно только во входе владельца (с аутентификатором).</div>{% endif %}
+</div>
+
+<div class="card" style="display:flex;gap:12px;flex-wrap:wrap">
+  <a class="btn secondary" href="{{ A }}/users/{{ user.id }}/transactions">Операции по балансу ({{ tx_count }})</a>
+  <a class="btn secondary" href="{{ A }}/users/{{ user.id }}/orders">Заказы ({{ order_count }})</a>
+  <a class="btn secondary" href="{{ A }}/users/{{ user.id }}/payments">Платежи ({{ pay_count }})</a>
+</div>
+{% endblock %}

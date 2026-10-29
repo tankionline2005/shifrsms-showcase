@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% import "_pic.html" as pic %}
+{% macro photo_field(m) -%}
+  {% if m %}
+    {% set base = A ~ "/channels/messages/" ~ m.id ~ "/photo" %}
+    {{ pic.field(base, thumb=(base ~ "?size=thumb&v=" ~ (m.thumb|ver)) if m.photo else "",
+                 full=(base ~ "?v=" ~ (m.thumb|ver)) if m.photo else "", remove=base ~ "/delete",
+                 confirm="Убрать фото из сообщения?") }}
+  {% else %}
+    {{ pic.field(A ~ "/channels/" ~ channel.id ~ "/photo-draft", remove="local", token=True) }}
+  {% endif %}
+{%- endmacro %}
+
+{% block content %}
+<style>
+.msg{display:grid;grid-template-columns:1fr 200px;gap:16px;align-items:start}
+@media (max-width:700px){.msg{grid-template-columns:1fr}}
+.msg h3{margin:0 0 8px;font-size:14px}
+.msg textarea{width:100%;min-height:110px;resize:vertical}
+.msg .counter{font-size:12px;margin-top:4px}
+.msg .btn-text{display:grid;gap:4px;margin-top:10px;font-size:13px}
+.msg .btn-text input{width:100%;box-sizing:border-box}
+.msg .buttons{display:flex;gap:8px;align-items:center;margin-top:10px}
+.msg .buttons .del{margin-left:auto}
+</style>
+
+<p><a href="{{ A }}/channels">← Каналы</a></p>
+{% if is_template %}
+<h1>Шаблон сообщения</h1>
+<div class="card muted" style="font-size:13px">
+  Каждый раз, когда у бота появляется новый канал, этот шаблон копируется в него первым сообщением — рефералу ничего
+  не обязательно менять под себя. Уже добавленные каналы не меняются; правка шаблона действует на следующие новые каналы.
+  У канала реферала кнопка в любом случае ведёт на его реферальную ссылку, ссылка ниже — только для своих каналов.
+</div>
+{% else %}
+<h1>Сообщения · {{ channel.title }}</h1>
+{% endif %}
+<div class="card muted" style="font-size:13px"{% if is_template %} hidden{% endif %}>
+  Под каждым новым постом бот оставляет одно из этих сообщений, выбранное случайно, с кнопкой, ведущей в бота.
+  Текст кнопки у каждого сообщения свой; если не задан — «{{ button }}».
+  {% if is_referral %}Канал реферала: кнопка всегда ведёт на его реферальную ссылку.
+  {% else %}Ссылку кнопки тоже можно задать своей — например, с UTM-меткой (конструктор — в «Ещё» → «UTM-метки»);
+  если не задана — просто бот.{% endif %}
+  Можно приложить фото — тогда текст станет подписью к нему (Telegram ограничивает подпись {{ max_caption }} символами,
+  обычное сообщение — {{ max_text }}). Оформление — кнопками над текстом: выделите текст и нажмите нужную.
+  Предпросмотр ссылок отключён.
+</div>
+{% if error %}<div class="notice bad">{{ error }}</div>{% endif %}
+{% if saved %}<div class="notice ok">{{ saved }}</div>{% endif %}
+
+{% for m in items %}
+<div class="card">
+  <form class="msg" method="post" action="{{ A }}/channels/messages/{{ m.id }}">
+    <div>
+      <h3>{{ 'Шаблон' if is_template else 'Сообщение ' ~ loop.index }}</h3>
+      <textarea name="text" placeholder="Текст сообщения" data-limit data-rich>{{ m.text }}</textarea>
+      <div class="counter muted"></div>
+      <label class="btn-text muted">Текст кнопки под сообщением
+        <input type="text" name="button_text" value="{{ m.button_text or '' }}" maxlength="{{ max_button }}"
+               placeholder="{{ button }}" autocomplete="off"></label>
+      {% if not is_referral %}
+      <label class="btn-text muted">Ссылка кнопки
+        <input type="text" name="button_url" value="{{ m.button_url or '' }}" maxlength="512" placeholder="{{ bot_url }}"
+               autocomplete="off" spellcheck="false"></label>
+      {% endif %}
+      <div class="buttons">
+        <button>Сохранить</button>
+        <button class="danger del" formaction="{{ A }}/channels/messages/{{ m.id }}/delete" formnovalidate
+          onclick="return confirm('Удалить сообщение {{ loop.index }}?')">Удалить</button>
+      </div>
+    </div>
+    {{ photo_field(m) }}
+  </form>
+</div>
+{% endfor %}
+
+{% if items|length < max_messages %}
+<div class="card" style="border-style:dashed">
+  <form class="msg" method="post" action="{{ A }}/channels/{{ channel.id }}/messages">
+    <div>
+      <h3>{{ 'Шаблон' if is_template else ('Новое сообщение' if items else 'Первое сообщение') }}</h3>
+      <textarea name="text" placeholder="Текст сообщения" data-limit data-rich></textarea>
+      <div class="counter muted"></div>
+      <label class="btn-text muted">Текст кнопки под сообщением
+        <input type="text" name="button_text" maxlength="{{ max_button }}" placeholder="{{ button }}"
+               autocomplete="off"></label>
+      {% if not is_referral %}
+      <label class="btn-text muted">Ссылка кнопки
+        <input type="text" name="button_url" maxlength="512" placeholder="{{ bot_url }}" autocomplete="off"
+               spellcheck="false"></label>
+      {% endif %}
+      <div class="buttons"><button>Добавить</button>
+        {% if not is_template %}<span class="muted" style="font-size:12px">можно добавить ещё {{ max_messages - items|length }}</span>{% endif %}</div>
+    </div>
+    {{ photo_field(none) }}
+  </form>
+</div>
+{% elif not is_template %}
+<p class="muted">Это максимум — {{ max_messages }} сообщений. Чтобы добавить новое, удалите одно из них.</p>
+{% endif %}
+
+{% include "_rich_editor.html" %}
+{{ pic.assets() }}
+<script>
+// счётчик символов: с фото лимит — подпись ({{ max_caption }}), без фото — сообщение ({{ max_text }}).
+// Фото сохраняется сразу при выборе (у нового сообщения — вместе с ним, кнопкой «Добавить»).
+document.querySelectorAll("form.msg").forEach(form => {
+  const text = form.querySelector("[data-limit]"), counter = form.querySelector(".counter");
+  const pic = form.querySelector(".pic");
+  const update = () => {
+    const photo = pic.classList.contains("has");
+    const limit = photo ? {{ max_caption }} : {{ max_text }};
+    const n = RichEditor.len(text);
+    counter.textContent = `${n} / ${limit}` + (photo ? " — подпись к фото" : "");
+    counter.className = "counter " + (n > limit ? "bad" : "muted");
+  };
+  text.addEventListener("input", update);
+  form.addEventListener("pic-change", update);
+  update();
+});
+</script>
+{% endblock %}

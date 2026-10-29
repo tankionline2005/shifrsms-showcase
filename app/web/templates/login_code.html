@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% import "_money.html" as m %}
+{% block content %}
+{{ m.styles() }}
+<div class="card" style="max-width:380px;margin:80px auto">
+  <h1>Код подтверждения</h1>
+  <p class="muted" style="margin-top:-8px">{{ login }}, введите 6 цифр из приложения-аутентификатора.</p>
+  {% if error %}<p class="bad">{{ error }}</p>{% endif %}
+  <form method="post" action="{{ A }}/login/code" style="display:grid;gap:10px">
+    {{ m.code_field(autofocus=true) }}
+    <button>Войти</button>
+  </form>
+  <p class="muted" style="font-size:13px">Потеряли телефон? Введите один из резервных кодов, которые вы сохранили
+    при привязке.</p>
+  <p style="font-size:13px"><a href="{{ A }}/login">← Другой аккаунт</a></p>
+</div>
+{% endblock %}

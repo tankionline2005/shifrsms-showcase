@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}{{ s.name }} — ShifrSMS{% endblock %}
+{% block style %}{% include "_levels_style.html" %}{% endblock %}
+{% block content %}
+<a class="back" href="{{ P }}">‹ {{ tr('nav_catalog') }}</a>
+<div class="card stack">
+  <div class="row">{{ logo(s) }}<h1 class="grow">{{ s.name }}</h1><span class="badge acc">{{ tr('auto') }}</span></div>
+  {% if levels %}
+  <p class="muted">{{ tr('auto_hint') }}</p>
+  {% with sid=s.id, cid=None, show_qty=False %}{% include "_levels.html" %}{% endwith %}
+  <div class="row">
+    <a class="btn sec" href="{{ P }}/s/{{ s.id }}/countries">{{ tr('choose_country') }}</a>
+    {% if guide %}<a class="btn ghost" href="{{ guide }}" target="_blank" rel="noopener">{{ tr('instruction') }}</a>{% endif %}
+  </div>
+  {% if note %}<div class="notice info">{{ note }}</div>{% endif %}
+  <p class="small dim">{% if user %}{{ tr('your_balance') }}: <b class="muted">{{ user.balance|rub }}</b> · {% endif %}{{ tr('activation_terms') }}</p>
+  {% else %}
+  <p class="muted">{{ tr('no_activations') }}</p>
+  {% endif %}
+</div>
+{% endblock %}

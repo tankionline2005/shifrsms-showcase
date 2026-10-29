@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+.preview{display:grid;grid-template-columns:220px 1fr;gap:16px;align-items:start}
+@media (max-width:700px){.preview{grid-template-columns:1fr}}
+.preview .pic img{max-height:none}
+.preview pre{white-space:pre-wrap;word-break:break-word;margin:0;font:inherit}
+.progress{height:8px;background:var(--fill);border-radius:99px;overflow:hidden;margin-top:8px}
+.progress div{height:100%;background:var(--accent)}
+</style>
+{% set sent = st.get('sent', 0) %}{% set done = b.total - st.get('pending', 0) %}
+<p><a href="{{ A }}/broadcasts">← Рассылки</a></p>
+<h1>Рассылка от {{ b.created_at|msk }}</h1>
+<p><a class="btn secondary" href="{{ A }}/broadcasts?repeat={{ b.id }}">Повторить рассылку</a></p>
+{% if error %}<div class="notice bad">{{ error }}</div>{% endif %}
+
+<div class="grid">
+  <div class="card stat"><div class="muted">Статус</div><div class="v">{{ statuses.get(b.status, b.status) }}</div>
+    {% if b.status == 'sending' %}<div class="progress"><div style="width:{{ (done * 100 / b.total)|round|int if b.total else 0 }}%"></div></div>
+      <div class="muted" style="font-size:12px;margin-top:4px">{{ done }} из {{ b.total }}</div>{% endif %}</div>
+  <div class="card stat"><div class="muted">Кому</div><div class="v" style="font-size:16px">{{ segment }}</div>
+    <div class="muted" style="font-size:12px">{{ b.total }} чел.</div></div>
+  <div class="card stat"><div class="muted">Доставлено</div><div class="v ok">{{ sent }}</div>
+    {% if st.get('deleted') %}<div class="muted" style="font-size:12px">удалено при отмене: {{ st.deleted }}</div>{% endif %}</div>
+  <div class="card stat"><div class="muted">Не дошло</div><div class="v">{{ st.get('failed', 0) + st.get('blocked', 0) }}</div>
+    <div class="muted" style="font-size:12px">заблокировали бота: {{ st.get('blocked', 0) }}{% if st.get('skipped') %} · не отправлено из-за отмены: {{ st.skipped }}{% endif %}</div></div>
+</div>
+
+<div class="card">
+  {% if can_cancel %}
+  <form method="post" action="{{ A }}/broadcasts/{{ b.id }}/cancel" style="float:right;margin-left:16px"
+    onsubmit="return confirm('Отменить рассылку?\n\n{{ 'Отправка остановится, а ' if b.status == 'sending' else '' }}уже отправленные сообщения будут удалены у получателей. Это необратимо.')">
+    <button class="danger solid">Отменить рассылку</button>
+    <div class="muted" style="font-size:12px;margin-top:4px">можно до {{ deadline|msk }}</div>
+  </form>
+  {% elif b.status in ('sending', 'done') %}
+  <p class="muted" style="float:right;margin:0 0 0 16px;font-size:13px;max-width:260px">Отменить уже нельзя: Telegram даёт
+    удалять сообщения бота только в течение 48 часов.</p>
+  {% endif %}
+  <h2 style="margin-top:0">Сообщение</h2>
+  <div class="preview">
+    {% if b.photo %}<div class="pic has"><img src="{{ A }}/broadcasts/{{ b.id }}/photo?size=thumb&v={{ b.thumb|ver }}"
+      data-full="{{ A }}/broadcasts/{{ b.id }}/photo?v={{ b.thumb|ver }}" alt="Фото рассылки" title="Открыть в исходном качестве"></div>{% else %}<div class="muted">без фото</div>{% endif %}
+    <pre>{{ b.text or '— без текста —' }}</pre>
+  </div>
+</div>
+{% import "_pic.html" as pic %}
+{{ pic.assets() }}
+{% endblock %}

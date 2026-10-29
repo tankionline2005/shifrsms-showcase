@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block content %}
+<p><a href="{{ A }}/services">← Сервисы</a></p>
+<h1>Страны для «{{ svc.name }}»</h1>
+{% if saved %}<p class="ok">Сохранено.</p>{% endif %}
+<div class="card muted">
+  Некоторые сервисы позволяют регистрироваться только в определённых странах.
+  Включите ограничение и отметьте разрешённые страны — в боте для этого сервиса будут показаны только они.
+  Выключенное ограничение сохраняет отметки, но бот показывает все страны.
+  Сейчас номера есть в {{ with_offers }} странах, отмечено {{ chosen }}.
+</div>
+<div class="card">
+  <b>Вставить список стран</b>
+  <p class="muted" style="margin:4px 0 8px">По одной стране на строку (можно через запятую или «;»).
+    Названия распознаются в разных написаниях: «Восточное Самоа», «Белоруссия», «ОАЭ», «Корея, Республика», «1. США»…</p>
+  <textarea id="paste" rows="6" style="width:100%"
+            placeholder="Афганистан&#10;Албания&#10;Алжир&#10;…"></textarea>
+  <div class="filters" style="margin-top:8px">
+    <button type="button" onclick="applyPaste()">Отметить из списка</button>
+    <label><input type="checkbox" id="replace"> снять остальные отметки</label>
+  </div>
+  <div id="report"></div>
+</div>
+<form method="post" id="f">
+  <div class="card">
+    <label style="font-size:15px">
+      <input type="checkbox" class="switch" name="country_filter" {{ 'checked' if svc.country_filter }}>
+      <b>Показывать в боте только отмеченные страны</b>
+    </label>
+  </div>
+  <div class="filters">
+    <input type="text" id="q" placeholder="Поиск страны" autocomplete="off">
+    <button type="button" class="secondary" onclick="mark(true)">Отметить видимые</button>
+    <button type="button" class="secondary" onclick="mark(false)">Снять видимые</button>
+    <label><input type="checkbox" class="switch" id="only"> только с номерами</label>
+    <button>Сохранить</button>
+  </div>
+  <div class="tablewrap">
+  <table id="t">
+    <tr><th></th><th>Страна</th><th>Цена в боте сейчас</th></tr>
+    {% for r in rows %}
+    <tr data-name="{{ r.c.name|lower }} {{ r.c.key|lower }}" data-has="{{ 1 if r.price else 0 }}">
+      <td><input type="checkbox" name="country" value="{{ r.c.id }}" {{ 'checked' if r.on }}></td>
+      <td>{{ r.c.flag }} {{ r.c.name }}{% if r.c.is_hidden %} <span class="muted">(скрыта)</span>{% endif %}</td>
+      <td>{{ ('от ' ~ (r.price|rub)) if r.price else '—' }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  </div>
+  <p><button>Сохранить</button></p>
+</form>
+<script>
+const rows = [...document.querySelectorAll("#t tr[data-name]")];
+function apply() {
+  const q = document.getElementById("q").value.trim().toLowerCase();
+  const only = document.getElementById("only").checked;
+  rows.forEach(r => r.style.display =
+    (!q || r.dataset.name.includes(q)) && (!only || r.dataset.has === "1") ? "" : "none");
+}
+function mark(v) { rows.filter(r => r.style.display !== "none")
+  .forEach(r => r.querySelector("input").checked = v); }
+document.getElementById("q").addEventListener("input", apply);
+document.getElementById("only").addEventListener("change", apply);
+async function applyPaste() {
+  const text = document.getElementById("paste").value;
+  const report = document.getElementById("report");
+  if (!text.trim()) { report.innerHTML = '<p class="warn">Вставьте список стран.</p>'; return; }
+  report.innerHTML = '<p class="muted">Распознаём…</p>';
+  let data;
+  try {
+    const r = await fetch("{{ A }}/countries/match", {method: "POST", credentials: "same-origin",
+      headers: {"Content-Type": "application/json"}, body: JSON.stringify({text})});
+    if (!r.ok) throw new Error(r.status);
+    data = await r.json();
+  } catch (e) { report.innerHTML = '<p class="bad">Ошибка связи с сервером: ' + e + '</p>'; return; }
+
+  // показываем все строки, чтобы отметки были видны
+  document.getElementById("q").value = ""; document.getElementById("only").checked = false; apply();
+  const ids = new Set(data.matched.map(m => String(m.id)));
+  const boxes = rows.map(r => r.querySelector("input"));
+  if (document.getElementById("replace").checked) boxes.forEach(b => b.checked = false);
+  boxes.forEach(b => { if (ids.has(b.value)) b.checked = true; });
+  document.querySelector("input[name=country_filter]").checked = true;
+
+  const esc = s => s.replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+  const fuzzy = data.matched.filter(m => m.fuzzy);
+  let html = `<p class="ok"><b>Отмечено стран: ${data.matched.length}.</b> Включено «только отмеченные». Не забудьте нажать «Сохранить».</p>`;
+  if (fuzzy.length) html += `<p class="warn">Распознаны по похожему названию — проверьте: ` +
+    fuzzy.map(m => `${esc(m.line)} → <b>${esc(m.name)}</b>`).join(", ") + `</p>`;
+  if (data.absent.length) html += `<p class="muted">ℹ️ Номеров этих стран сейчас нет ни у одной площадки, поэтому отметить их нельзя (когда появятся — вставьте список ещё раз): ` +
+    data.absent.map(esc).join(", ") + `</p>`;
+  if (data.unknown.length) html += `<p class="bad">Не распознано: ` + data.unknown.map(esc).join(", ") + `</p>`;
+  report.innerHTML = html;
+}
+
+// Enter в поиске не должен отправлять форму
+document.getElementById("q").addEventListener("keydown", e => { if (e.key === "Enter") e.preventDefault(); });
+</script>
+{% endblock %}

@@ -1,0 +1,12 @@
+{% for p in rows %}
+  <tr>
+    <td>№{{ p.id }}</td>
+    <td>{{ p.created_at|msk }}</td>
+    <td><a href="{{ A }}/users/{{ p.user_id }}">{{ p.user_id }}</a></td>
+    <td>{{ methods.get(p.method, (p.method, ''))[0] }}</td>
+    <td>{{ p.amount|rub }}{% if p.stars %}<div class="muted" style="font-size:12px">⭐{{ p.stars }}</div>{% endif %}</td>
+    <td><span class="badge {{ 'received' if p.status == 'confirmed' else 'waiting' if p.status == 'pending' else 'cancelled' }}">{{ statuses.get(p.status, p.status) }}</span></td>
+    <td>{{ p.paid_at|msk }}</td>
+    <td class="muted" style="font-size:12px">{{ p.external_id or '—' }}</td>
+  </tr>
+{% endfor %}

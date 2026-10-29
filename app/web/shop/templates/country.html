@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}{{ s.name }} · {{ cname(c) }} — ShifrSMS{% endblock %}
+{% block style %}{% include "_levels_style.html" %}{% endblock %}
+{% block content %}
+<a class="back" href="{{ P }}/s/{{ s.id }}/countries">‹ {{ tr('other_country') }}</a>
+<div class="card stack">
+  <h1>{{ s.name }} · {{ ctitle(c) }}</h1>
+  <p class="muted">{{ tr('price_hint') }}</p>
+  {% with sid=s.id, cid=c.id, show_qty=True %}{% include "_levels.html" %}{% endwith %}
+  {% if note %}<div class="notice info">{{ note }}</div>{% endif %}
+  <p class="small dim">{% if user %}{{ tr('your_balance') }}: <b class="muted">{{ user.balance|rub }}</b> · {% endif %}{{ tr('activation_terms') }}</p>
+</div>
+{% endblock %}

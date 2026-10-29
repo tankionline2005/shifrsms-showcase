@@ -1,0 +1,5 @@
+{# Название чата со ссылкой и правами бота — для страницы «Каналы» #}
+{% macro chat_link(c) -%}
+  <b>{{ c.title }}</b>{% if c.username %} <a href="https://t.me/{{ c.username }}" target="_blank" rel="noopener">@{{ c.username }}</a>{% endif %}
+  <span class="muted" style="font-size:12px">· бот: <span class="{{ 'ok' if c.status in admin else 'bad' }}">{{ statuses.get(c.status, c.status) }}</span></span>
+{%- endmacro %}

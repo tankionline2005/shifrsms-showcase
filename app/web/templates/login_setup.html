@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% import "_money.html" as m %}
+{% block content %}
+{{ m.styles() }}
+<div class="card" style="max-width:640px;margin:60px auto">
+  <h1>Привязка аутентификатора</h1>
+  <p class="muted" style="margin-top:-8px">{{ login }}, вход в панель теперь — пароль и код из приложения на телефоне.
+    Это же приложение подтверждает выводы и другие операции с деньгами.</p>
+  {% if error %}<div class="notice bad">{{ error }}</div>{% endif %}
+  {{ m.setup_block(qr, secret_spaced, A ~ "/login/setup") }}
+</div>
+{% endblock %}

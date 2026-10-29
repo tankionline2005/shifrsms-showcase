@@ -1,0 +1,42 @@
+{# Строки таблицы «Сервисы»: общие для страницы и подгрузки при прокрутке #}
+{% for r in rows %}
+<tr>
+  <td>{{ r.svc.id }}</td>
+  <td>
+    <form class="inline" method="post" action="{{ A }}/services/{{ r.svc.id }}">
+      <input type="text" name="name" value="{{ r.svc.name }}" style="width:200px">
+      <input type="number" name="sort" value="{{ r.svc.sort }}" style="width:70px"
+        title="Порядок в популярных; у непопулярных — 999">
+      <label><input type="checkbox" class="switch" name="is_popular" {{ 'checked' if r.svc.is_popular }}> популярный</label>
+      <label><input type="checkbox" class="switch" name="is_hidden" {{ 'checked' if r.svc.is_hidden }}> скрыт</label>
+      <label title="Кнопка сервиса в боте — синяя"><input type="checkbox" class="switch" name="highlight" {{ 'checked' if r.svc.highlight }}> выделить синим</label>
+      <button class="secondary">OK</button>
+      {% if not r.svc.instruction %}<button type="button" class="secondary"
+        onclick="this.hidden = true; const t = this.form.instruction; t.hidden = false; t.focus()">Инструкция</button>{% endif %}
+      {% if not r.svc.note %}<button type="button" class="secondary" title="Примечание в карточке сервиса, на экране цены и в карточке активации"
+        onclick="this.hidden = true; const t = this.form.note; t.hidden = false; t.focus()">Прим. 1</button>{% endif %}
+      {% if not r.svc.note_sms %}<button type="button" class="secondary" title="Примечание под пришедшим SMS-кодом"
+        onclick="this.hidden = true; const t = this.form.note_sms; t.hidden = false; t.focus()">Прим. 2</button>{% endif %}
+      <input type="text" name="instruction" value="{{ r.svc.instruction or '' }}" maxlength="512"
+        style="width:100%;margin-top:6px"{{ ' hidden' if not r.svc.instruction }}
+        placeholder="Ссылка на инструкцию — кнопка «Инструкция» рядом с «Выбрать страну», например https://telegra.ph/…">
+      <textarea name="note" rows="3" maxlength="1000" style="width:100%;margin-top:6px"{{ ' hidden' if not r.svc.note }}
+        placeholder="Прим. 1 — абзацем в карточке сервиса, на экране цены и в карточке активации">{{ r.svc.note or '' }}</textarea>
+      <textarea name="note_sms" rows="3" maxlength="1000" style="width:100%;margin-top:6px"{{ ' hidden' if not r.svc.note_sms }}
+        placeholder="Прим. 2 — абзацем в карточке активации под пришедшим SMS-кодом, например «❗️Сразу после регистрации установите двухфакторную аутентификацию»">{{ r.svc.note_sms or '' }}</textarea>
+    </form>
+  </td>
+  <td style="font-size:12px">{% for l in r.links %}<div>{{ l.provider }}: <code>{{ l.code }}</code> {{ l.provider_name }}</div>{% endfor %}</td>
+  <td>{{ r.countries }}<br>
+    <a href="{{ A }}/services/{{ r.svc.id }}/countries" style="font-size:12px">
+      {{ 'только выбранные' if r.svc.country_filter else 'настроить' }}</a></td>
+  <td>{% set p = pop.get(r.svc.id) %}{% if p %}<b class="ok" title="{{ p.title }}">{{ p.pct }}</b>{% else %}<span class="muted">—</span>{% endif %}</td>
+  <td>{{ r.min_price|rub if r.min_price else '—' }}</td>
+  <td>
+    <form class="inline" method="post" action="{{ A }}/services/{{ r.svc.id }}/merge" onsubmit="return confirm('Перенести все коды в сервис с указанным ID и скрыть этот?')">
+      <input type="number" name="target_id" placeholder="ID" style="width:80px" required>
+      <button class="secondary merge-go">→</button>
+    </form>
+  </td>
+</tr>
+{% endfor %}

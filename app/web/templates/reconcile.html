@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+{% import "_money.html" as m %}
+{% import "_paged.html" as pg %}
+{% block content %}
+{{ m.styles() }}
+<style>
+.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:900px){.cols{grid-template-columns:minmax(0,1fr)}}
+.diff.v{font-size:30px}
+.diff.zero{color:var(--green)}.diff.plus{color:var(--accent)}.diff.minus{color:var(--red)}
+.total td{font-weight:700;border-top:.5px solid var(--separator)}
+.wallet{display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start}
+.wallet .qr{width:150px;height:150px}
+.stack{display:grid;gap:10px}
+.stack input[type=text]{width:100%}
+details > summary{cursor:pointer;color:var(--accent);margin-top:8px}
+.prov{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.prov .card{background:var(--fill-2);margin:0}
+.prov .bal{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
+.badge.done{background:var(--green-soft);color:var(--green)}
+.badge.failed{background:var(--red-soft);color:var(--red)}
+.badge.queued,.badge.signed{background:var(--orange-soft);color:var(--orange)}
+.badge.canceled{background:var(--fill);color:var(--text-2)}
+dialog{padding:20px;max-width:440px;width:calc(100% - 32px)}
+.small{font-size:13px}
+.big{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
+</style>
+
+<h1>Сверка</h1>
+{% if error %}<div class="notice bad">{{ error }}</div>{% endif %}
+{% if saved %}<div class="notice ok">{{ saved }}</div>{% endif %}
+{% for e in r.errors %}<div class="hint" style="margin-bottom:8px">Не удалось получить — {{ e }}. Разница посчитана без этого.</div>{% endfor %}
+{% if not is_owner %}<div class="hint" style="margin-bottom:16px">Вы вошли общим admin — смотреть можно, а действия с
+  деньгами доступны только во входе владельца.</div>{% endif %}
+
+{% if not since %}
+<div class="card">
+  <h2 style="margin-top:0">Учёт прибыли владельцев ещё не начат</h2>
+  <p class="muted" style="margin-top:-6px">Нажмите в день релиза. С этого момента прибыль с каждой активации пойдёт на
+    балансы владельцев. Всё, что сейчас есть сверх долгов (деньги, вложенные в площадки), станет «оборотными
+    средствами» — это не прибыль, она не распределяется.</p>
+  {% if is_owner %}
+  <form method="post" action="{{ A }}/reconcile/start" class="inline">{{ m.code_field() }}<button>Начать учёт прибыли</button></form>
+  {% endif %}
+</div>
+{% endif %}
+
+{% set d = r.diff %}
+<div class="grid">
+  <div class="card stat"><div class="muted">Разница: деньги − долги</div>
+    <div class="v diff {{ 'zero' if d|abs < 1 else ('plus' if d > 0 else 'minus') }}">{{ '+' if d >= 0 else '−' }}{{ d|abs|usd }}</div>
+    <div class="muted small">{% if d|abs < 1 %}сходится{% elif d > 0 %}лишние деньги — можно распределить{% else %}недостача — выводы владельцев на паузе{% endif %}</div>
+  </div>
+  <div class="card stat"><div class="muted">Деньги</div><div class="v">{{ r.total_assets|usd }}</div></div>
+  <div class="card stat"><div class="muted">Должны</div><div class="v">{{ r.total_debts|usd }}</div></div>
+  <div class="card stat"><div class="muted">Курс для пересчёта ₽</div><div class="v">{{ '%.2f' % r.rate }} ₽/$</div>
+    <div class="muted small">ЦБ РФ</div></div>
+</div>
+{% if since and is_owner and r.complete and d|abs >= 0.01 %}
+<div class="card">
+  <form method="post" action="{{ A }}/reconcile/distribute" class="inline"
+        onsubmit="return confirm('Распределить {{ '%+.2f' % d }} $ на балансы владельцев пополам?')">
+    <span>Распределить разницу <b>{{ '%+.2f' % d }} $</b> на балансы владельцев (пропорционально долям)</span>
+    {{ m.code_field() }}<button class="{{ 'danger' if d < 0 }}">Распределить</button>
+  </form>
+  <p class="muted small" style="margin:8px 0 0">Плюс обычно — надбавка к курсу оказалась больше комиссий платёжки и
+    курса банка; минус — наоборот. Если недавно был вывод из Platega или пополнение площадки, подождите, пока деньги дойдут.</p>
+</div>
+{% endif %}
+
+<div class="cols">
+  <div>
+    <h2 style="margin-top:0">Деньги</h2>
+    <div class="tablewrap"><table>
+      {% for title, value, detail in r.assets %}
+      <tr><td>{{ title }}{% if detail %}<div class="muted small">{{ detail }}</div>{% endif %}</td>
+        <td class="num">{{ value|usd if value is not none else '—' }}</td></tr>
+      {% endfor %}
+      <tr class="total"><td>Всего</td><td class="num">{{ r.total_assets|usd }}</td></tr>
+    </table></div>
+  </div>
+  <div>
+    <h2 style="margin-top:0">Должны</h2>
+    <div class="tablewrap"><table>
+      {% for title, value, detail in r.debts %}
+      <tr><td>{{ title }}{% if detail %}<div class="muted small">{{ detail }}</div>{% endif %}</td><td class="num">{{ value|usd }}</td></tr>
+      {% endfor %}
+      <tr class="total"><td>Всего</td><td class="num">{{ r.total_debts|usd }}</td></tr>
+    </table></div>
+    {% if is_owner and since %}
+    <details><summary>Изменить оборотные средства</summary>
+      <form method="post" action="{{ A }}/reconcile/capital" class="stack" style="margin-top:10px">
+        <input type="text" name="capital" inputmode="decimal" value="{{ values.working_capital }}">
+        <span class="muted small">Деньги владельцев в площадках и кошельке, которые не прибыль. Уменьшили — разница
+          станет больше и её можно распределить.</span>
+        <div class="inline" style="display:flex;gap:8px">{{ m.code_field() }}<button>Сохранить</button></div>
+      </form></details>
+    {% endif %}
+  </div>
+</div>
+
+<h2>Кошелёк системы</h2>
+<div class="card">
+  {% if address %}
+  <div class="wallet">
+    <div class="qr">{{ qr|safe }}</div>
+    <div style="flex:1;min-width:260px">
+      <div class="muted small">Адрес USDT и TRX, сеть TRON{{ ' · ТЕСТОВАЯ СЕТЬ ' ~ network|upper if network != 'mainnet' }}</div>
+      <div class="key addr" style="font-size:15px;margin:4px 0 10px;user-select:all">{{ address }}</div>
+      <div style="display:flex;gap:28px;flex-wrap:wrap">
+        <div><div class="muted small">USDT</div><div class="big">{{ r.wallet|usd if r.wallet is not none else '—' }}</div></div>
+        <div><div class="muted small">TRX на комиссии</div><div class="big">{{ '%.1f' % r.trx if r.trx is not none else '—' }}</div></div>
+      </div>
+      {% if is_owner %}<button class="secondary" style="margin-top:10px" data-trx>Пополнить TRX</button>{% endif %}
+      <p class="muted small">Сюда настраивается автовывод из Platega. TRX сжигается на комиссию каждого перевода
+        (≈ 7 TRX, на новый адрес ≈ 14): купите его в обменнике за USDT из кошелька — «Пополнить TRX» — или пришлите
+        на этот адрес. <a href="{{ address_url(address) }}" target="_blank" rel="noopener">Открыть в Tronscan ↗</a></p>
+      {% if not trongrid_key %}<p class="hint small">Нет ключа TronGrid — история поступлений обновляется медленнее и
+        может ограничиваться. Бесплатный ключ: trongrid.io → TRONGRID_API_KEY в .env на сервере.</p>{% endif %}
+    </div>
+  </div>
+  {% else %}
+  <p class="muted" style="margin:0">Кошелёк системы не подключён: на сервере в .env нет WALLET_PRIVATE_KEY.</p>
+  {% endif %}
+</div>
+
+<h2>Площадки</h2>
+<div class="prov">
+  {% for p in providers %}
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+      <b>{{ p.title }}</b>{% if not p.enabled %}<span class="badge off">выключена</span>{% endif %}
+    </div>
+    <div class="bal">{{ p.balance|usd if p.balance is not none else '—' }}</div>
+    {% if is_owner %}
+    <button class="secondary" style="margin-top:8px" data-topup="{{ p.key }}" data-title="{{ p.title }}">Пополнить</button>
+    <div class="muted small" style="margin-top:6px">Создайте счёт в кабинете площадки, нажмите «Пополнить» и вставьте
+      адрес и сумму из счёта: адрес у площадок меняется, каждый раз берите новый.</div>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+
+<h2>Переводы из кошелька</h2>
+{% call pg.box(A ~ "/reconcile/table/payouts", "Поиск: номер, адрес, кто, площадка, статус, сумма") %}{% with t = payouts_t %}{% include "_tbl_payouts.html" %}{% endwith %}{% endcall %}
+
+<h2>Движения кошелька в сети</h2>
+{% call pg.box(A ~ "/reconcile/table/transfers", "Поиск: адрес, сумма, «поступление» или «списание»") %}{% with t = transfers_t %}{% include "_tbl_transfers.html" %}{% endwith %}{% endcall %}
+
+<h2>Журнал действий</h2>
+{% call pg.box(A ~ "/reconcile/table/audit", "Поиск: кто или что сделал") %}{% with t = audit_t %}{% include "_tbl_audit.html" %}{% endwith %}{% endcall %}
+{{ pg.assets() }}
+
+{% if is_owner %}
+<dialog id="topup">
+  <h2 style="margin-top:0">Пополнить <span data-title></span></h2>
+  <form method="post" action="{{ A }}/reconcile/topup" class="stack">
+    <input type="hidden" name="provider">
+    <label class="muted small">Адрес USDT TRC20 из счёта площадки
+      <input type="text" name="address" required spellcheck="false" autocomplete="off"></label>
+    <label class="muted small">Сумма, $ — ровно как в счёте
+      <input type="text" name="amount" inputmode="decimal" required autocomplete="off"></label>
+    <span class="muted small">Комиссию сети платит кошелёк системы (в TRX), площадке придёт ровно эта сумма.
+      Проверьте адрес: перевод в сети отменить нельзя.</span>
+    {{ m.code_field() }}
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button type="button" class="secondary" onclick="this.closest('dialog').close()">Отмена</button>
+      <button>Перевести</button>
+    </div>
+  </form>
+</dialog>
+<dialog id="trx">
+  <h2 style="margin-top:0">Пополнить TRX</h2>
+  <form method="post" action="{{ A }}/reconcile/trx" class="stack">
+    <span class="muted small">Создайте в обменнике заявку USDT (TRC20) → TRX, получатель TRX — адрес кошелька системы
+      <span class="addr">{{ address }}</span>. Сюда вставьте адрес и сумму из счёта обменника.</span>
+    <label class="muted small">Адрес USDT TRC20 из счёта обменника
+      <input type="text" name="address" required spellcheck="false" autocomplete="off"></label>
+    <label class="muted small">Сумма USDT — ровно как в счёте
+      <input type="text" name="amount" inputmode="decimal" required autocomplete="off"></label>
+    <span class="muted small">Чтобы отправить даже этот перевод, в кошельке уже должно быть ≈ 15 TRX. Если TRX совсем
+      нет — в первый раз пришлите его на адрес кошелька с биржи или своего кошелька. Перевод в сети отменить нельзя.</span>
+    {{ m.code_field() }}
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button type="button" class="secondary" onclick="this.closest('dialog').close()">Отмена</button>
+      <button>Оплатить</button>
+    </div>
+  </form>
+</dialog>
+<script>
+(() => {
+  const trx = document.getElementById("trx"), trxBtn = document.querySelector("[data-trx]");
+  if (trxBtn) trxBtn.addEventListener("click", () => { trx.querySelector("form").reset(); trx.showModal(); });
+  const dlg = document.getElementById("topup");
+  document.querySelectorAll("[data-topup]").forEach(btn => btn.addEventListener("click", () => {
+    dlg.querySelector("[data-title]").textContent = btn.dataset.title;
+    dlg.querySelector("[name=provider]").value = btn.dataset.topup;
+    dlg.querySelector("[name=address]").value = "";
+    dlg.querySelector("[name=amount]").value = "";
+    dlg.showModal();
+  }));
+})();
+</script>
+{% endif %}
+{% endblock %}

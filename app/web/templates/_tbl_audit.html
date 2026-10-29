@@ -1,0 +1,11 @@
+{# «Сверка» → журнал действий #}
+{% import "_paged.html" as pg %}
+<div class="tablewrap"><table>
+  <tr><th>Дата ({{ tz_label() }})</th><th>Кто</th><th>Что</th></tr>
+  {% for a in t.rows %}
+  <tr><td>{{ a.created_at|msk }}</td><td>{{ a.actor }}</td><td>{{ a.action }}</td></tr>
+  {% else %}
+  <tr><td colspan="3" class="muted">{{ 'Ничего не найдено' if t.q else 'Пока пусто' }}</td></tr>
+  {% endfor %}
+</table></div>
+{{ pg.pager(t) }}

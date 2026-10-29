@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}ShifrSMS — {{ tr('catalog_title') }}{% endblock %}
+{% block robots %}index{% endblock %}
+{% block style %}
+.hero{display:grid;gap:8px;margin-bottom:22px}
+.svc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-top:16px}
+.svc{display:flex;align-items:center;gap:12px;padding:12px 14px;min-height:64px;border-radius:var(--r);background:var(--surface);border:1px solid var(--line);
+  color:var(--text);text-decoration:none!important;font-weight:500;min-width:0}
+.svc:hover{border-color:var(--accent-line);background:var(--raised)}
+.svc span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.more{display:flex;justify-content:center;margin-top:18px}
+.more .loading{opacity:.6;pointer-events:none}
+@media (max-width:640px){.svc-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+{% endblock %}
+{% block content %}
+<div class="hero">
+  <h1>{{ tr('catalog_title') }}</h1>
+  <p class="muted">{{ tr('catalog_sub') }}</p>
+</div>
+
+<form class="search" method="get" action="{{ P }}" id="svc-form">
+  <svg><use href="#i-search"/></svg>
+  <input type="search" name="q" value="{{ q }}" placeholder="{{ tr('find_service') }}" autocomplete="off" id="svc-q">
+</form>
+
+{% if loading %}
+<div class="empty">{{ tr('catalog_loading') }}</div>
+{% else %}
+<div class="svc-grid" id="svc-grid">{% include "_svc_items.html" %}</div>
+<div class="empty{{ ' hide' if items }}" id="svc-none"><b>{{ tr('nothing_found') }}</b></div>
+<div class="more{{ ' hide' if not more }}" id="svc-more-box">
+  <a class="btn sec" id="svc-more" href="?{{ 'q=' ~ q|urlencode ~ '&' if q }}offset={{ items|length }}">{{ tr('more_services') }}</a></div>
+{% endif %}
+{% endblock %}
+{% block script %}
+<script>
+/* «Ещё сервисы» — следующие 150 без перезагрузки; поиск — на сервере по всему списку, пока пишут */
+(function(){
+  var q=document.getElementById('svc-q'),g=document.getElementById('svc-grid'),none=document.getElementById('svc-none'),
+      box=document.getElementById('svc-more-box'),more=document.getElementById('svc-more');
+  if(!q||!g)return;
+  var seq=0;
+  function load(offset,replace){
+    var n=++seq,v=q.value.trim();
+    more.classList.add('loading');
+    return fetch('{{ P }}?part=1&offset='+offset+(v?'&q='+encodeURIComponent(v):''),{credentials:'same-origin'}).then(function(r){
+      var has=r.headers.get('X-More')==='1';
+      return r.text().then(function(h){
+        if(n!==seq)return;
+        if(replace)g.innerHTML=h;else g.insertAdjacentHTML('beforeend',h);
+        box.classList.toggle('hide',!has);
+        none.classList.toggle('hide',g.children.length>0);
+        more.classList.remove('loading');
+      });
+    }).catch(function(){more.classList.remove('loading')});
+  }
+  more.addEventListener('click',function(e){e.preventDefault();if(!more.classList.contains('loading'))load(g.children.length,false)});
+  var timer;
+  q.addEventListener('input',function(){
+    clearTimeout(timer);
+    timer=setTimeout(function(){
+      var v=q.value.trim();
+      history.replaceState(null,'',v?'?q='+encodeURIComponent(v):location.pathname);
+      load(0,true);
+    },250);
+  });
+  document.getElementById('svc-form').addEventListener('submit',function(e){e.preventDefault();clearTimeout(timer);load(0,true)});
+})();
+</script>
+{% endblock %}

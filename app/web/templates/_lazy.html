@@ -1,0 +1,42 @@
+{# Подгрузка строк таблицы при прокрутке: <tbody data-lazy data-step="…" data-count="…">.
+   Следующие строки запрашиваются по тому же адресу (с теми же фильтрами) с offset и part=1 —
+   сервер отдаёт только строки. Когда подгружено что-то сверх первой порции, автообновление страницы
+   встаёт на паузу: оно вернуло бы таблицу к первой порции и сбило прокрутку. #}
+<div id="lazy-state" class="muted" style="text-align:center;padding:14px;font-size:13px"></div>
+<script>
+(() => {
+  const body = document.querySelector("tbody[data-lazy]"), state = document.getElementById("lazy-state");
+  if (!body || !state) return;
+  const step = +body.dataset.step;
+  let offset = +body.dataset.count, loading = false, done = offset < step;
+  const label = () => {
+    state.textContent = done ? "" : "Показать ещё ↓";  // можно и нажать, если прокрутка не сработала
+    state.style.cursor = done ? "" : "pointer";
+  };
+  label();
+  if (done) return;
+  async function load() {
+    if (loading || done) return;
+    loading = true; state.textContent = "Загружаем…";
+    const url = new URL(location.href);
+    url.searchParams.set("offset", offset); url.searchParams.set("part", "1");
+    try {
+      const r = await fetch(url, {credentials: "same-origin", headers: {"X-Refresh": "1"}});
+      if (!r.ok) throw new Error(r.status);
+      const before = body.rows.length;
+      body.insertAdjacentHTML("beforeend", await r.text());
+      const added = body.rows.length - before;
+      offset += added; done = added < step;
+      if (added) {
+        const main = document.querySelector("main");
+        if (+main.dataset.refresh) main.dataset.paused = "1";
+      }
+    } catch (err) { state.textContent = "Не удалось загрузить: " + err + " — нажмите, чтобы повторить"; loading = false; return; }
+    loading = false; label();
+    if (done) io.disconnect();
+  }
+  const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) load(); }, {rootMargin: "400px"});
+  io.observe(state);
+  state.addEventListener("click", load);
+})();
+</script>

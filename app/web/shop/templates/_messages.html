@@ -1,0 +1,13 @@
+{% for m in messages %}
+{% if m.via == 'system' %}
+<div class="msg sys">{% if m.text == 'Обращение закрыто' %}{{ tr('support_system_closed') }}{% elif m.text == 'Обращение снова открыто' %}{{ tr('support_system_reopened') }}
+  {%- elif m.text.startswith('Обращение объединено с №') %}{% set n = m.text.split('№')[1] %}<a href="{{ P }}/support/{{ n }}">{{ tr('support_system_merged', id=n) }}</a>
+  {%- elif m.text.startswith('Присоединено обращение №') %}{% set n = m.text.split('№')[1] %}<a href="{{ P }}/support/{{ n }}">{{ tr('support_system_joined', id=n) }}</a>
+  {%- else %}{{ m.text }}{% endif %}</div>
+{% else %}
+<div class="msg {{ 'staff' if m.from_staff else 'me' }}">
+  <div class="who">{{ tr('support_staff') if m.from_staff else tr('support_you') }} · <time data-utc="{{ m.created_at.isoformat() }}"></time></div>
+  <div class="body">{{ m.text }}</div>
+</div>
+{% endif %}
+{% endfor %}

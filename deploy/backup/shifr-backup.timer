@@ -1,0 +1,10 @@
+[Unit]
+Description=Shifr SMS: резервная копия два раза в сутки (03:00 и 15:00 МСК)
+
+[Timer]
+OnCalendar=*-*-* 00:00:00 UTC
+OnCalendar=*-*-* 12:00:00 UTC
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}{{ tr('faq_title') }} — ShifrSMS{% endblock %}
+{% block robots %}index{% endblock %}
+{% block style %}
+.faq details{border-top:1px solid var(--line)}
+.faq details:first-child{border-top:0}
+.faq summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;gap:16px;padding:16px 18px;font-weight:600}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary::after{content:"+";color:var(--accent);font-size:20px;line-height:1}
+.faq details[open] summary::after{content:"−"}
+.faq p{padding:0 18px 16px;color:var(--muted);line-height:1.6}
+{% endblock %}
+{% block content %}
+<div class="stack" style="max-width:820px">
+  <h1>{{ tr('faq_title') }}</h1>
+  <div class="list faq">
+    {% for q, a in faq %}<details><summary>{{ q }}</summary><p>{{ a }}</p></details>{% endfor %}
+  </div>
+  <h2 style="margin-top:12px">{{ tr('rules_docs') }}</h2>
+  <div class="list">
+    {% if terms_url %}<a href="{{ terms_url }}" target="_blank" rel="noopener"><span class="grow">{{ tr('doc_terms') }}</span><span class="chev">›</span></a>{% endif %}
+    {% if privacy_url %}<a href="{{ privacy_url }}" target="_blank" rel="noopener"><span class="grow">{{ tr('doc_privacy') }}</span><span class="chev">›</span></a>{% endif %}
+    <a href="{{ P }}/api"><span class="grow">{{ tr('api_docs') }}</span><span class="chev">›</span></a>
+    <a href="{{ P }}/support"><span class="grow">{{ tr('nav_support') }}</span><span class="chev">›</span></a>
+  </div>
+</div>
+{% endblock %}

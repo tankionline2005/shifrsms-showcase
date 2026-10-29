@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Платежи</h1>
+{% if not enabled %}<div class="card bad">Ключи Platega не заданы в .env — пополнение в боте выключено.</div>{% endif %}
+<div class="grid">
+  <div class="card stat"><div class="muted">Пополнено сегодня ({{ tz_label() }})</div><div class="v">{{ today.sum|rub }}</div>
+    <div class="muted" style="font-size:12px">оплат: {{ today.n }}</div></div>
+  <div class="card stat"><div class="muted">Пополнено за 30 дней</div><div class="v">{{ month.sum|rub }}</div>
+    <div class="muted" style="font-size:12px">оплат: {{ month.n }}</div></div>
+  <div class="card stat"><div class="muted">Ждут оплаты</div><div class="v">{{ pending }}</div></div>
+</div>
+<div class="filters">
+  {% for s, t in [('', 'Все')] + statuses.items()|list %}
+  <a href="?status={{ s }}" class="{{ 'on' if status==s }}">{{ t }}</a>
+  {% endfor %}
+</div>
+{% include "_payments_table.html" %}
+<p class="muted" style="font-size:12px">Деньги зачисляются автоматически по уведомлению Platega (адрес для «Настройки → Callback URLs» в
+  кабинете Platega: <code>{{ callback_url }}</code>), а незавершённые счета бот ещё и сам проверяет раз в минуту.
+  Неоплаченный счёт закрывается через сутки.</p>
+{% endblock %}

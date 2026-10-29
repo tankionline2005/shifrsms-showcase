@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="{{ lang }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>{% block title %}ShifrSMS{% endblock %}</title>
+<meta name="theme-color" content="#0b0a0e">
+<meta name="robots" content="{% block robots %}noindex{% endblock %}">
+<link rel="icon" type="image/png" href="/partnership/icon.png?v=2">
+<link rel="preload" href="/partnership/fonts/bitcell.woff" as="font" type="font/woff" crossorigin>
+<style>
+@font-face{font-family:"BitCell";src:url(/partnership/fonts/bitcell.woff) format("woff");font-display:block}
+@font-face{font-family:"Plex";font-weight:400;src:url(/partnership/fonts/plex-mono-400.woff) format("woff");font-display:swap}
+@font-face{font-family:"Plex";font-weight:500;src:url(/partnership/fonts/plex-mono-500.woff) format("woff");font-display:swap}
+/* Сайт для ежедневной работы: тёмный, спокойный; розовый — только у главных кнопок и активных пунктов */
+:root{
+  color-scheme:dark;
+  --bg:#000;--surface:#131117;--raised:#1a171f;--hover:#221e28;--line:#26212d;--line-2:#342d3c;
+  --text:#efeaf2;--muted:#a39ba9;--dim:#716a78;
+  --accent:#d946ef;--accent-h:#e879f9;--accent-soft:rgba(217,70,239,.12);--accent-line:rgba(217,70,239,.38);
+  --ok:#4ade80;--ok-soft:rgba(74,222,128,.12);--warn:#fbbf24;--warn-soft:rgba(251,191,36,.12);
+  --bad:#f87171;--bad-soft:rgba(248,113,113,.12);
+  --r:14px;--r-s:10px;
+  --f:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --mono:"Plex",ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+  --pix:"BitCell",var(--mono);
+}
+*,*::before,*::after{box-sizing:border-box}
+html{background:var(--bg);-webkit-text-size-adjust:100%}
+body{margin:0;min-height:100svh;display:flex;flex-direction:column;background:transparent;color:var(--text);font:400 15px/1.5 var(--f)}
+/* фон — пиксельные «обои», как на главной и /partnership */
+body::before,body::after{content:"";position:fixed;z-index:-1;pointer-events:none;will-change:transform}
+body::before{inset:-440px 0 0 -440px;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='440' height='440' shape-rendering='crispEdges'%3E%3Cpath fill='%23fff' fill-opacity='.06' d='M291 30h15v3h-15zM288 33h3v3h-3zM306 33h3v3h-3zM288 36h3v3h-3zM306 36h3v3h-3zM288 39h3v3h-3zM306 39h3v3h-3zM285 42h27v3h-27zM285 45h3v3h-3zM309 45h3v3h-3zM285 48h3v3h-3zM297 48h3v3h-3zM309 48h3v3h-3zM285 51h3v3h-3zM297 51h3v3h-3zM309 51h3v3h-3zM285 54h3v3h-3zM309 54h3v3h-3zM285 57h27v3h-27zM36 304h4v2h-4zM46 304h4v2h-4zM34 306h2v2h-2zM40 306h2v2h-2zM44 306h2v2h-2zM50 306h2v2h-2zM34 308h2v2h-2zM42 308h2v2h-2zM50 308h2v2h-2zM34 310h2v2h-2zM50 310h2v2h-2zM36 312h2v2h-2zM48 312h2v2h-2zM38 314h2v2h-2zM46 314h2v2h-2zM40 316h2v2h-2zM44 316h2v2h-2zM42 318h2v2h-2zM180 399h45v3h-45zM183 402h15v3h-15zM207 402h15v3h-15zM183 405h15v3h-15zM207 405h15v3h-15zM186 408h9v3h-9zM210 408h9v3h-9zM206 146h6v2h-6zM204 148h2v2h-2zM212 148h2v2h-2zM204 150h2v2h-2zM212 150h18v2h-18zM204 152h2v2h-2zM212 152h2v2h-2zM222 152h2v2h-2zM226 152h2v2h-2zM206 154h6v2h-6zM222 154h2v2h-2zM226 154h2v2h-2zM404 172h14v2h-14zM400 174h4v2h-4zM418 174h4v2h-4zM400 176h2v2h-2zM420 176h2v2h-2zM400 178h2v2h-2zM410 178h2v2h-2zM420 178h2v2h-2zM400 180h2v2h-2zM408 180h6v2h-6zM420 180h2v2h-2zM400 182h2v2h-2zM410 182h2v2h-2zM420 182h2v2h-2zM400 184h2v2h-2zM420 184h2v2h-2zM402 186h2v2h-2zM418 186h2v2h-2zM402 188h2v2h-2zM418 188h2v2h-2zM404 190h2v2h-2zM416 190h2v2h-2zM406 192h2v2h-2zM414 192h2v2h-2zM408 194h2v2h-2zM412 194h2v2h-2zM410 196h2v2h-2zM240 340h10v2h-10zM236 342h4v2h-4zM250 342h4v2h-4zM234 344h2v2h-2zM242 344h6v2h-6zM254 344h2v2h-2zM232 346h2v2h-2zM240 346h10v2h-10zM256 346h2v2h-2zM234 348h2v2h-2zM242 348h6v2h-6zM254 348h2v2h-2zM236 350h4v2h-4zM250 350h4v2h-4zM240 352h10v2h-10zM142 212h24v2h-24zM140 214h2v2h-2zM166 214h2v2h-2zM140 216h2v2h-2zM146 216h4v2h-4zM152 216h4v2h-4zM158 216h4v2h-4zM166 216h2v2h-2zM140 218h2v2h-2zM166 218h2v2h-2zM142 220h8v2h-8zM152 220h14v2h-14zM148 222h2v2h-2zM152 222h2v2h-2zM148 224h4v2h-4zM26 108h4v2h-4zM26 110h2v2h-2zM30 110h6v2h-6zM26 112h2v2h-2zM36 112h8v2h-8zM28 114h2v2h-2zM44 114h8v2h-8zM28 116h2v2h-2zM52 116h4v2h-4zM30 118h2v2h-2zM46 118h6v2h-6zM30 120h2v2h-2zM40 120h6v2h-6zM32 122h2v2h-2zM36 122h4v2h-4zM42 122h2v2h-2zM32 124h4v2h-4zM40 124h2v2h-2zM38 126h2v2h-2zM316 128h2v2h-2zM324 128h2v2h-2zM316 130h2v2h-2zM324 130h2v2h-2zM312 132h18v2h-18zM316 134h2v2h-2zM324 134h2v2h-2zM316 136h2v2h-2zM324 136h2v2h-2zM312 138h18v2h-18zM316 140h2v2h-2zM324 140h2v2h-2zM316 142h2v2h-2zM324 142h2v2h-2zM180 297h21v3h-21zM180 300h3v3h-3zM201 300h3v3h-3zM180 303h3v3h-3zM204 303h3v3h-3zM180 306h3v3h-3zM207 306h3v3h-3zM180 309h3v3h-3zM186 309h18v3h-18zM207 309h3v3h-3zM180 312h3v3h-3zM186 312h3v3h-3zM192 312h6v3h-6zM201 312h3v3h-3zM207 312h3v3h-3zM180 315h3v3h-3zM186 315h18v3h-18zM207 315h3v3h-3zM180 318h3v3h-3zM186 318h3v3h-3zM192 318h6v3h-6zM201 318h3v3h-3zM207 318h3v3h-3zM180 321h3v3h-3zM186 321h18v3h-18zM207 321h3v3h-3zM180 324h3v3h-3zM207 324h3v3h-3zM180 327h30v3h-30zM82 116h26v2h-26zM82 118h4v2h-4zM104 118h4v2h-4zM82 120h2v2h-2zM86 120h2v2h-2zM102 120h2v2h-2zM106 120h2v2h-2zM82 122h2v2h-2zM88 122h2v2h-2zM100 122h2v2h-2zM106 122h2v2h-2zM82 124h2v2h-2zM90 124h2v2h-2zM98 124h2v2h-2zM106 124h2v2h-2zM82 126h2v2h-2zM92 126h2v2h-2zM96 126h2v2h-2zM106 126h2v2h-2zM82 128h2v2h-2zM94 128h2v2h-2zM106 128h2v2h-2zM82 130h2v2h-2zM106 130h2v2h-2zM82 132h26v2h-26zM64 166h16v2h-16zM64 168h2v2h-2zM78 168h2v2h-2zM64 170h2v2h-2zM68 170h8v2h-8zM78 170h2v2h-2zM64 172h2v2h-2zM68 172h2v2h-2zM74 172h2v2h-2zM78 172h2v2h-2zM64 174h2v2h-2zM68 174h2v2h-2zM74 174h2v2h-2zM78 174h2v2h-2zM64 176h2v2h-2zM68 176h2v2h-2zM74 176h2v2h-2zM78 176h2v2h-2zM64 178h2v2h-2zM68 178h8v2h-8zM78 178h2v2h-2zM64 180h2v2h-2zM78 180h2v2h-2zM64 182h2v2h-2zM70 182h4v2h-4zM78 182h2v2h-2zM64 184h2v2h-2zM78 184h2v2h-2zM64 186h16v2h-16zM306 -14h2v2h-2zM314 -14h2v2h-2zM306 -12h2v2h-2zM314 -12h2v2h-2zM302 -10h18v2h-18zM306 -8h2v2h-2zM314 -8h2v2h-2zM306 -6h2v2h-2zM314 -6h2v2h-2zM302 -4h18v2h-18zM306 -2h2v2h-2zM314 -2h2v2h-2zM306 0h2v2h-2zM314 0h2v2h-2zM306 426h2v2h-2zM314 426h2v2h-2zM306 428h2v2h-2zM314 428h2v2h-2zM302 430h18v2h-18zM306 432h2v2h-2zM314 432h2v2h-2zM306 434h2v2h-2zM314 434h2v2h-2zM302 436h18v2h-18zM306 438h2v2h-2zM314 438h2v2h-2zM306 440h2v2h-2zM314 440h2v2h-2zM362 408h4v2h-4zM362 410h2v2h-2zM366 410h6v2h-6zM362 412h2v2h-2zM372 412h8v2h-8zM364 414h2v2h-2zM380 414h8v2h-8zM364 416h2v2h-2zM388 416h4v2h-4zM366 418h2v2h-2zM382 418h6v2h-6zM366 420h2v2h-2zM376 420h6v2h-6zM368 422h2v2h-2zM372 422h4v2h-4zM378 422h2v2h-2zM368 424h4v2h-4zM376 424h2v2h-2zM374 426h2v2h-2zM408 279h21v3h-21zM402 282h6v3h-6zM429 282h6v3h-6zM402 285h3v3h-3zM432 285h3v3h-3zM402 288h3v3h-3zM417 288h3v3h-3zM432 288h3v3h-3zM402 291h3v3h-3zM414 291h9v3h-9zM432 291h3v3h-3zM402 294h3v3h-3zM417 294h3v3h-3zM432 294h3v3h-3zM402 297h3v3h-3zM432 297h3v3h-3zM405 300h3v3h-3zM429 300h3v3h-3zM405 303h3v3h-3zM429 303h3v3h-3zM408 306h3v3h-3zM426 306h3v3h-3zM411 309h3v3h-3zM423 309h3v3h-3zM414 312h3v3h-3zM420 312h3v3h-3zM417 315h3v3h-3zM182 76h4v2h-4zM182 78h4v2h-4zM176 80h4v2h-4zM182 80h4v2h-4zM176 82h4v2h-4zM182 82h4v2h-4zM170 84h4v2h-4zM176 84h4v2h-4zM182 84h4v2h-4zM170 86h4v2h-4zM176 86h4v2h-4zM182 86h4v2h-4zM164 88h4v2h-4zM170 88h4v2h-4zM176 88h4v2h-4zM182 88h4v2h-4zM164 90h4v2h-4zM170 90h4v2h-4zM176 90h4v2h-4zM182 90h4v2h-4zM312 315h36v3h-36zM309 318h3v3h-3zM348 318h3v3h-3zM309 321h3v3h-3zM318 321h6v3h-6zM327 321h6v3h-6zM336 321h6v3h-6zM348 321h3v3h-3zM309 324h3v3h-3zM348 324h3v3h-3zM312 327h12v3h-12zM327 327h21v3h-21zM321 330h3v3h-3zM327 330h3v3h-3zM321 333h6v3h-6zM219 75h15v3h-15zM216 78h3v3h-3zM234 78h3v3h-3zM216 81h3v3h-3zM234 81h3v3h-3zM216 84h3v3h-3zM234 84h3v3h-3zM213 87h27v3h-27zM213 90h3v3h-3zM237 90h3v3h-3zM213 93h3v3h-3zM225 93h3v3h-3zM237 93h3v3h-3zM213 96h3v3h-3zM225 96h3v3h-3zM237 96h3v3h-3zM213 99h3v3h-3zM237 99h3v3h-3zM213 102h27v3h-27zM358 218h26v2h-26zM358 220h4v2h-4zM380 220h4v2h-4zM358 222h2v2h-2zM362 222h2v2h-2zM378 222h2v2h-2zM382 222h2v2h-2zM358 224h2v2h-2zM364 224h2v2h-2zM376 224h2v2h-2zM382 224h2v2h-2zM358 226h2v2h-2zM366 226h2v2h-2zM374 226h2v2h-2zM382 226h2v2h-2zM358 228h2v2h-2zM368 228h2v2h-2zM372 228h2v2h-2zM382 228h2v2h-2zM358 230h2v2h-2zM370 230h2v2h-2zM382 230h2v2h-2zM358 232h2v2h-2zM382 232h2v2h-2zM358 234h26v2h-26zM92 230h10v2h-10zM88 232h4v2h-4zM102 232h4v2h-4zM86 234h2v2h-2zM94 234h6v2h-6zM106 234h2v2h-2zM84 236h2v2h-2zM92 236h10v2h-10zM108 236h2v2h-2zM86 238h2v2h-2zM94 238h6v2h-6zM106 238h2v2h-2zM88 240h4v2h-4zM102 240h4v2h-4zM92 242h10v2h-10zM318 69h21v3h-21zM318 72h3v3h-3zM339 72h3v3h-3zM318 75h3v3h-3zM342 75h3v3h-3zM318 78h3v3h-3zM345 78h3v3h-3zM318 81h3v3h-3zM324 81h18v3h-18zM345 81h3v3h-3zM318 84h3v3h-3zM324 84h3v3h-3zM330 84h6v3h-6zM339 84h3v3h-3zM345 84h3v3h-3zM318 87h3v3h-3zM324 87h18v3h-18zM345 87h3v3h-3zM318 90h3v3h-3zM324 90h3v3h-3zM330 90h6v3h-6zM339 90h3v3h-3zM345 90h3v3h-3zM318 93h3v3h-3zM324 93h18v3h-18zM345 93h3v3h-3zM318 96h3v3h-3zM345 96h3v3h-3zM318 99h30v3h-30zM12 39h45v3h-45zM15 42h15v3h-15zM39 42h15v3h-15zM15 45h15v3h-15zM39 45h15v3h-15zM18 48h9v3h-9zM42 48h9v3h-9zM262 -8h4v2h-4zM272 -8h4v2h-4zM260 -6h2v2h-2zM266 -6h2v2h-2zM270 -6h2v2h-2zM276 -6h2v2h-2zM260 -4h2v2h-2zM268 -4h2v2h-2zM276 -4h2v2h-2zM260 -2h2v2h-2zM276 -2h2v2h-2zM262 0h2v2h-2zM274 0h2v2h-2zM264 2h2v2h-2zM272 2h2v2h-2zM266 4h2v2h-2zM270 4h2v2h-2zM268 6h2v2h-2zM262 432h4v2h-4zM272 432h4v2h-4zM260 434h2v2h-2zM266 434h2v2h-2zM270 434h2v2h-2zM276 434h2v2h-2zM260 436h2v2h-2zM268 436h2v2h-2zM276 436h2v2h-2zM260 438h2v2h-2zM276 438h2v2h-2zM262 440h2v2h-2zM274 440h2v2h-2zM264 442h2v2h-2zM272 442h2v2h-2zM266 444h2v2h-2zM270 444h2v2h-2zM268 446h2v2h-2zM284 258h10v2h-10zM282 260h2v2h-2zM294 260h2v2h-2zM280 262h2v2h-2zM288 262h2v2h-2zM296 262h2v2h-2zM278 264h2v2h-2zM286 264h6v2h-6zM298 264h2v2h-2zM278 266h2v2h-2zM284 266h2v2h-2zM288 266h2v2h-2zM298 266h2v2h-2zM278 268h2v2h-2zM286 268h6v2h-6zM298 268h2v2h-2zM278 270h2v2h-2zM288 270h2v2h-2zM292 270h2v2h-2zM298 270h2v2h-2zM278 272h2v2h-2zM286 272h6v2h-6zM298 272h2v2h-2zM280 274h2v2h-2zM288 274h2v2h-2zM296 274h2v2h-2zM282 276h2v2h-2zM294 276h2v2h-2zM284 278h10v2h-10zM423 57h6v3h-6zM423 60h6v3h-6zM414 63h6v3h-6zM423 63h6v3h-6zM414 66h6v3h-6zM423 66h6v3h-6zM405 69h6v3h-6zM414 69h6v3h-6zM423 69h6v3h-6zM405 72h6v3h-6zM414 72h6v3h-6zM423 72h6v3h-6zM396 75h6v3h-6zM405 75h6v3h-6zM414 75h6v3h-6zM423 75h6v3h-6zM396 78h6v3h-6zM405 78h6v3h-6zM414 78h6v3h-6zM423 78h6v3h-6zM128 -28h8v4h-8zM148 -28h8v4h-8zM124 -24h4v4h-4zM136 -24h4v4h-4zM144 -24h4v4h-4zM156 -24h4v4h-4zM124 -20h4v4h-4zM140 -20h4v4h-4zM156 -20h4v4h-4zM124 -16h4v4h-4zM156 -16h4v4h-4zM128 -12h4v4h-4zM152 -12h4v4h-4zM132 -8h4v4h-4zM148 -8h4v4h-4zM136 -4h4v4h-4zM144 -4h4v4h-4zM140 0h4v4h-4zM128 412h8v4h-8zM148 412h8v4h-8zM124 416h4v4h-4zM136 416h4v4h-4zM144 416h4v4h-4zM156 416h4v4h-4zM124 420h4v4h-4zM140 420h4v4h-4zM156 420h4v4h-4zM124 424h4v4h-4zM156 424h4v4h-4zM128 428h4v4h-4zM152 428h4v4h-4zM132 432h4v4h-4zM148 432h4v4h-4zM136 436h4v4h-4zM144 436h4v4h-4zM140 440h4v4h-4zM130 284h16v2h-16zM130 286h2v2h-2zM144 286h2v2h-2zM130 288h2v2h-2zM134 288h8v2h-8zM144 288h2v2h-2zM130 290h2v2h-2zM134 290h2v2h-2zM140 290h2v2h-2zM144 290h2v2h-2zM130 292h2v2h-2zM134 292h2v2h-2zM140 292h2v2h-2zM144 292h2v2h-2zM130 294h2v2h-2zM134 294h2v2h-2zM140 294h2v2h-2zM144 294h2v2h-2zM130 296h2v2h-2zM134 296h8v2h-8zM144 296h2v2h-2zM130 298h2v2h-2zM144 298h2v2h-2zM130 300h2v2h-2zM136 300h4v2h-4zM144 300h2v2h-2zM130 302h2v2h-2zM144 302h2v2h-2zM130 304h16v2h-16z'/%3E%3Cpath fill='%23ff00ff' fill-opacity='.075' d='M86 334h4v2h-4zM86 336h4v2h-4zM80 338h4v2h-4zM86 338h4v2h-4zM80 340h4v2h-4zM86 340h4v2h-4zM74 342h4v2h-4zM80 342h4v2h-4zM86 342h4v2h-4zM74 344h4v2h-4zM80 344h4v2h-4zM86 344h4v2h-4zM68 346h4v2h-4zM74 346h4v2h-4zM80 346h4v2h-4zM86 346h4v2h-4zM68 348h4v2h-4zM74 348h4v2h-4zM80 348h4v2h-4zM86 348h4v2h-4zM24 207h15v3h-15zM21 210h3v3h-3zM39 210h3v3h-3zM18 213h3v3h-3zM30 213h3v3h-3zM42 213h3v3h-3zM15 216h3v3h-3zM27 216h9v3h-9zM45 216h3v3h-3zM15 219h3v3h-3zM24 219h3v3h-3zM30 219h3v3h-3zM45 219h3v3h-3zM15 222h3v3h-3zM27 222h9v3h-9zM45 222h3v3h-3zM15 225h3v3h-3zM30 225h3v3h-3zM36 225h3v3h-3zM45 225h3v3h-3zM15 228h3v3h-3zM27 228h9v3h-9zM45 228h3v3h-3zM18 231h3v3h-3zM30 231h3v3h-3zM42 231h3v3h-3zM21 234h3v3h-3zM39 234h3v3h-3zM24 237h15v3h-15zM90 32h6v2h-6zM88 34h2v2h-2zM96 34h2v2h-2zM88 36h2v2h-2zM96 36h18v2h-18zM88 38h2v2h-2zM96 38h2v2h-2zM106 38h2v2h-2zM110 38h2v2h-2zM90 40h6v2h-6zM106 40h2v2h-2zM110 40h2v2h-2zM274 356h16v2h-16zM274 358h2v2h-2zM288 358h2v2h-2zM274 360h2v2h-2zM278 360h8v2h-8zM288 360h2v2h-2zM274 362h2v2h-2zM278 362h2v2h-2zM284 362h2v2h-2zM288 362h2v2h-2zM274 364h2v2h-2zM278 364h2v2h-2zM284 364h2v2h-2zM288 364h2v2h-2zM274 366h2v2h-2zM278 366h2v2h-2zM284 366h2v2h-2zM288 366h2v2h-2zM274 368h2v2h-2zM278 368h8v2h-8zM288 368h2v2h-2zM274 370h2v2h-2zM288 370h2v2h-2zM274 372h2v2h-2zM280 372h4v2h-4zM288 372h2v2h-2zM274 374h2v2h-2zM288 374h2v2h-2zM274 376h16v2h-16zM54 -20h14v2h-14zM50 -18h4v2h-4zM68 -18h4v2h-4zM50 -16h2v2h-2zM70 -16h2v2h-2zM50 -14h2v2h-2zM60 -14h2v2h-2zM70 -14h2v2h-2zM50 -12h2v2h-2zM58 -12h6v2h-6zM70 -12h2v2h-2zM50 -10h2v2h-2zM60 -10h2v2h-2zM70 -10h2v2h-2zM50 -8h2v2h-2zM70 -8h2v2h-2zM52 -6h2v2h-2zM68 -6h2v2h-2zM52 -4h2v2h-2zM68 -4h2v2h-2zM54 -2h2v2h-2zM66 -2h2v2h-2zM56 0h2v2h-2zM64 0h2v2h-2zM58 2h2v2h-2zM62 2h2v2h-2zM60 4h2v2h-2zM54 420h14v2h-14zM50 422h4v2h-4zM68 422h4v2h-4zM50 424h2v2h-2zM70 424h2v2h-2zM50 426h2v2h-2zM60 426h2v2h-2zM70 426h2v2h-2zM50 428h2v2h-2zM58 428h6v2h-6zM70 428h2v2h-2zM50 430h2v2h-2zM60 430h2v2h-2zM70 430h2v2h-2zM50 432h2v2h-2zM70 432h2v2h-2zM52 434h2v2h-2zM68 434h2v2h-2zM52 436h2v2h-2zM68 436h2v2h-2zM54 438h2v2h-2zM66 438h2v2h-2zM56 440h2v2h-2zM64 440h2v2h-2zM58 442h2v2h-2zM62 442h2v2h-2zM60 444h2v2h-2z'/%3E%3Cg fill='%23ff00ff' fill-opacity='.07'%3E%3Cpath transform='translate(189 205) scale(2)' d='M12 0h4v1h-4zM10 1h2v1h-2zM16 1h2v1h-2zM9 2h1v1h-1zM18 2h1v1h-1zM8 3h1v1h-1zM19 3h1v1h-1zM7 4h1v1h-1zM20 4h1v1h-1zM7 5h1v1h-1zM20 5h1v1h-1zM6 6h1v1h-1zM21 6h1v1h-1zM6 7h1v1h-1zM21 7h1v1h-1zM1 8h2v1h-2zM6 8h1v1h-1zM21 8h1v1h-1zM25 8h2v1h-2zM0 9h1v1h-1zM3 9h2v1h-2zM6 9h1v1h-1zM21 9h1v1h-1zM23 9h2v1h-2zM27 9h1v1h-1zM0 10h1v1h-1zM5 10h1v1h-1zM22 10h1v1h-1zM27 10h1v1h-1zM1 11h1v1h-1zM26 11h1v1h-1zM2 12h1v1h-1zM25 12h1v1h-1zM3 13h1v1h-1zM12 13h4v1h-4zM24 13h1v1h-1zM4 14h1v1h-1zM13 14h2v1h-2zM23 14h1v1h-1zM5 15h1v1h-1zM22 15h1v1h-1zM5 16h1v1h-1zM22 16h1v1h-1zM5 17h1v1h-1zM22 17h1v1h-1zM4 18h1v1h-1zM23 18h1v1h-1zM4 19h1v1h-1zM23 19h1v1h-1zM3 20h1v1h-1zM24 20h1v1h-1zM2 21h1v1h-1zM25 21h1v1h-1zM2 22h1v1h-1zM25 22h1v1h-1zM3 23h1v1h-1zM22 23h2v1h-2zM25 23h1v1h-1zM4 24h1v1h-1zM6 24h2v1h-2zM21 24h1v1h-1zM24 24h1v1h-1zM5 25h1v1h-1zM8 25h1v1h-1zM15 25h2v1h-2zM21 25h1v1h-1zM9 26h1v1h-1zM14 26h1v1h-1zM17 26h1v1h-1zM20 26h1v1h-1zM10 27h1v1h-1zM13 27h1v1h-1zM18 27h2v1h-2zM11 28h2v1h-2zM10 6h1v1h-1zM17 6h1v1h-1zM9 7h3v1h-3zM16 7h3v1h-3zM9 8h3v1h-3zM16 8h3v1h-3zM10 9h1v1h-1zM17 9h1v1h-1z'/%3E%3Cpath transform='translate(-24 337) scale(2)' d='M12 0h4v1h-4zM10 1h2v1h-2zM16 1h2v1h-2zM9 2h1v1h-1zM18 2h1v1h-1zM8 3h1v1h-1zM19 3h1v1h-1zM7 4h1v1h-1zM20 4h1v1h-1zM7 5h1v1h-1zM20 5h1v1h-1zM6 6h1v1h-1zM21 6h1v1h-1zM6 7h1v1h-1zM21 7h1v1h-1zM1 8h2v1h-2zM6 8h1v1h-1zM21 8h1v1h-1zM25 8h2v1h-2zM0 9h1v1h-1zM3 9h2v1h-2zM6 9h1v1h-1zM21 9h1v1h-1zM23 9h2v1h-2zM27 9h1v1h-1zM0 10h1v1h-1zM5 10h1v1h-1zM22 10h1v1h-1zM27 10h1v1h-1zM1 11h1v1h-1zM26 11h1v1h-1zM2 12h1v1h-1zM25 12h1v1h-1zM3 13h1v1h-1zM12 13h4v1h-4zM24 13h1v1h-1zM4 14h1v1h-1zM13 14h2v1h-2zM23 14h1v1h-1zM5 15h1v1h-1zM22 15h1v1h-1zM5 16h1v1h-1zM22 16h1v1h-1zM5 17h1v1h-1zM22 17h1v1h-1zM4 18h1v1h-1zM23 18h1v1h-1zM4 19h1v1h-1zM23 19h1v1h-1zM3 20h1v1h-1zM24 20h1v1h-1zM2 21h1v1h-1zM25 21h1v1h-1zM2 22h1v1h-1zM25 22h1v1h-1zM3 23h1v1h-1zM22 23h2v1h-2zM25 23h1v1h-1zM4 24h1v1h-1zM6 24h2v1h-2zM21 24h1v1h-1zM24 24h1v1h-1zM5 25h1v1h-1zM8 25h1v1h-1zM15 25h2v1h-2zM21 25h1v1h-1zM9 26h1v1h-1zM14 26h1v1h-1zM17 26h1v1h-1zM20 26h1v1h-1zM10 27h1v1h-1zM13 27h1v1h-1zM18 27h2v1h-2zM11 28h2v1h-2zM10 6h1v1h-1zM17 6h1v1h-1zM9 7h3v1h-3zM16 7h3v1h-3zM9 8h3v1h-3zM16 8h3v1h-3zM10 9h1v1h-1zM17 9h1v1h-1z'/%3E%3Cpath transform='translate(416 337) scale(2)' d='M12 0h4v1h-4zM10 1h2v1h-2zM16 1h2v1h-2zM9 2h1v1h-1zM18 2h1v1h-1zM8 3h1v1h-1zM19 3h1v1h-1zM7 4h1v1h-1zM20 4h1v1h-1zM7 5h1v1h-1zM20 5h1v1h-1zM6 6h1v1h-1zM21 6h1v1h-1zM6 7h1v1h-1zM21 7h1v1h-1zM1 8h2v1h-2zM6 8h1v1h-1zM21 8h1v1h-1zM25 8h2v1h-2zM0 9h1v1h-1zM3 9h2v1h-2zM6 9h1v1h-1zM21 9h1v1h-1zM23 9h2v1h-2zM27 9h1v1h-1zM0 10h1v1h-1zM5 10h1v1h-1zM22 10h1v1h-1zM27 10h1v1h-1zM1 11h1v1h-1zM26 11h1v1h-1zM2 12h1v1h-1zM25 12h1v1h-1zM3 13h1v1h-1zM12 13h4v1h-4zM24 13h1v1h-1zM4 14h1v1h-1zM13 14h2v1h-2zM23 14h1v1h-1zM5 15h1v1h-1zM22 15h1v1h-1zM5 16h1v1h-1zM22 16h1v1h-1zM5 17h1v1h-1zM22 17h1v1h-1zM4 18h1v1h-1zM23 18h1v1h-1zM4 19h1v1h-1zM23 19h1v1h-1zM3 20h1v1h-1zM24 20h1v1h-1zM2 21h1v1h-1zM25 21h1v1h-1zM2 22h1v1h-1zM25 22h1v1h-1zM3 23h1v1h-1zM22 23h2v1h-2zM25 23h1v1h-1zM4 24h1v1h-1zM6 24h2v1h-2zM21 24h1v1h-1zM24 24h1v1h-1zM5 25h1v1h-1zM8 25h1v1h-1zM15 25h2v1h-2zM21 25h1v1h-1zM9 26h1v1h-1zM14 26h1v1h-1zM17 26h1v1h-1zM20 26h1v1h-1zM10 27h1v1h-1zM13 27h1v1h-1zM18 27h2v1h-2zM11 28h2v1h-2zM10 6h1v1h-1zM17 6h1v1h-1zM9 7h3v1h-3zM16 7h3v1h-3zM9 8h3v1h-3zM16 8h3v1h-3zM10 9h1v1h-1zM17 9h1v1h-1z'/%3E%3C/g%3E%3Cpath fill='%23fff' fill-opacity='.05' d='M132 46h2v2h-2zM132 48h2v2h-2zM130 50h2v2h-2zM134 50h2v2h-2zM126 52h4v2h-4zM136 52h4v2h-4zM130 54h2v2h-2zM134 54h2v2h-2zM132 56h2v2h-2zM132 58h2v2h-2zM160 108h2v2h-2zM158 110h6v2h-6zM160 112h2v2h-2zM70 286h2v2h-2zM70 288h2v2h-2zM68 290h2v2h-2zM72 290h2v2h-2zM64 292h4v2h-4zM74 292h4v2h-4zM68 294h2v2h-2zM72 294h2v2h-2zM70 296h2v2h-2zM70 298h2v2h-2zM176 178h2v2h-2zM176 180h2v2h-2zM174 182h2v2h-2zM178 182h2v2h-2zM170 184h4v2h-4zM180 184h4v2h-4zM174 186h2v2h-2zM178 186h2v2h-2zM176 188h2v2h-2zM176 190h2v2h-2zM40 154h2v2h-2zM40 156h2v2h-2zM38 158h2v2h-2zM42 158h2v2h-2zM34 160h4v2h-4zM44 160h4v2h-4zM38 162h2v2h-2zM42 162h2v2h-2zM40 164h2v2h-2zM40 166h2v2h-2zM100 378h2v2h-2zM100 380h2v2h-2zM98 382h2v2h-2zM102 382h2v2h-2zM94 384h4v2h-4zM104 384h4v2h-4zM98 386h2v2h-2zM102 386h2v2h-2zM100 388h2v2h-2zM100 390h2v2h-2zM360 366h2v2h-2zM360 368h2v2h-2zM358 370h2v2h-2zM362 370h2v2h-2zM354 372h4v2h-4zM364 372h4v2h-4zM358 374h2v2h-2zM362 374h2v2h-2zM360 376h2v2h-2zM360 378h2v2h-2zM122 348h2v2h-2zM120 350h6v2h-6zM122 352h2v2h-2zM392 110h2v2h-2zM392 112h2v2h-2zM390 114h2v2h-2zM394 114h2v2h-2zM386 116h4v2h-4zM396 116h4v2h-4zM390 118h2v2h-2zM394 118h2v2h-2zM392 120h2v2h-2zM392 122h2v2h-2zM266 90h2v2h-2zM266 92h2v2h-2zM264 94h2v2h-2zM268 94h2v2h-2zM260 96h4v2h-4zM270 96h4v2h-4zM264 98h2v2h-2zM268 98h2v2h-2zM266 100h2v2h-2zM266 102h2v2h-2zM114 72h2v2h-2zM114 74h2v2h-2zM112 76h2v2h-2zM116 76h2v2h-2zM108 78h4v2h-4zM118 78h4v2h-4zM112 80h2v2h-2zM116 80h2v2h-2zM114 82h2v2h-2zM114 84h2v2h-2zM276 230h2v2h-2zM274 232h6v2h-6zM276 234h2v2h-2zM-4 8h2v2h-2zM-4 10h2v2h-2zM-6 12h2v2h-2zM-2 12h2v2h-2zM-10 14h4v2h-4zM0 14h4v2h-4zM-6 16h2v2h-2zM-2 16h2v2h-2zM-4 18h2v2h-2zM-4 20h2v2h-2zM436 8h2v2h-2zM436 10h2v2h-2zM434 12h2v2h-2zM438 12h2v2h-2zM430 14h4v2h-4zM440 14h4v2h-4zM434 16h2v2h-2zM438 16h2v2h-2zM436 18h2v2h-2zM436 20h2v2h-2zM426 128h2v2h-2zM426 130h2v2h-2zM424 132h2v2h-2zM428 132h2v2h-2zM420 134h4v2h-4zM430 134h4v2h-4zM424 136h2v2h-2zM428 136h2v2h-2zM426 138h2v2h-2zM426 140h2v2h-2zM0 152h2v2h-2zM0 154h2v2h-2zM-2 156h2v2h-2zM2 156h2v2h-2zM-6 158h4v2h-4zM4 158h4v2h-4zM-2 160h2v2h-2zM2 160h2v2h-2zM0 162h2v2h-2zM0 164h2v2h-2zM440 152h2v2h-2zM440 154h2v2h-2zM438 156h2v2h-2zM442 156h2v2h-2zM434 158h4v2h-4zM444 158h4v2h-4zM438 160h2v2h-2zM442 160h2v2h-2zM440 162h2v2h-2zM440 164h2v2h-2zM62 250h2v2h-2zM62 252h2v2h-2zM60 254h2v2h-2zM64 254h2v2h-2zM56 256h4v2h-4zM66 256h4v2h-4zM60 258h2v2h-2zM64 258h2v2h-2zM62 260h2v2h-2zM62 262h2v2h-2zM392 338h2v2h-2zM392 340h2v2h-2zM390 342h2v2h-2zM394 342h2v2h-2zM386 344h4v2h-4zM396 344h4v2h-4zM390 346h2v2h-2zM394 346h2v2h-2zM392 348h2v2h-2zM392 350h2v2h-2zM270 60h2v2h-2zM268 62h6v2h-6zM270 64h2v2h-2zM314 222h2v2h-2zM312 224h6v2h-6zM314 226h2v2h-2zM114 194h2v2h-2zM114 196h2v2h-2zM112 198h2v2h-2zM116 198h2v2h-2zM108 200h4v2h-4zM118 200h4v2h-4zM112 202h2v2h-2zM116 202h2v2h-2zM114 204h2v2h-2zM114 206h2v2h-2zM100 278h2v2h-2zM100 280h2v2h-2zM98 282h2v2h-2zM102 282h2v2h-2zM94 284h4v2h-4zM104 284h4v2h-4zM98 286h2v2h-2zM102 286h2v2h-2zM100 288h2v2h-2zM100 290h2v2h-2zM370 26h2v2h-2zM370 28h2v2h-2zM368 30h2v2h-2zM372 30h2v2h-2zM364 32h4v2h-4zM374 32h4v2h-4zM368 34h2v2h-2zM372 34h2v2h-2zM370 36h2v2h-2zM370 38h2v2h-2zM262 142h2v2h-2zM260 144h6v2h-6zM262 146h2v2h-2zM156 262h2v2h-2zM154 264h6v2h-6zM156 266h2v2h-2zM298 174h2v2h-2zM296 176h6v2h-6zM298 178h2v2h-2zM142 146h2v2h-2zM140 148h6v2h-6zM142 150h2v2h-2zM330 368h2v2h-2zM330 370h2v2h-2zM328 372h2v2h-2zM332 372h2v2h-2zM324 374h4v2h-4zM334 374h4v2h-4zM328 376h2v2h-2zM332 376h2v2h-2zM330 378h2v2h-2zM330 380h2v2h-2zM344 180h2v2h-2zM344 182h2v2h-2zM342 184h2v2h-2zM346 184h2v2h-2zM338 186h4v2h-4zM348 186h4v2h-4zM342 188h2v2h-2zM346 188h2v2h-2zM344 190h2v2h-2zM344 192h2v2h-2zM30 402h2v2h-2zM30 404h2v2h-2zM28 406h2v2h-2zM32 406h2v2h-2zM24 408h4v2h-4zM34 408h4v2h-4zM28 410h2v2h-2zM32 410h2v2h-2zM30 412h2v2h-2zM30 414h2v2h-2zM138 366h2v2h-2zM136 368h6v2h-6zM138 370h2v2h-2zM400 18h2v2h-2zM400 20h2v2h-2zM398 22h2v2h-2zM402 22h2v2h-2zM394 24h4v2h-4zM404 24h4v2h-4zM398 26h2v2h-2zM402 26h2v2h-2zM400 28h2v2h-2zM400 30h2v2h-2zM8 258h2v2h-2zM6 260h6v2h-6zM8 262h2v2h-2zM194 40h2v2h-2zM194 42h2v2h-2zM192 44h2v2h-2zM196 44h2v2h-2zM188 46h4v2h-4zM198 46h4v2h-4zM192 48h2v2h-2zM196 48h2v2h-2zM194 50h2v2h-2zM194 52h2v2h-2zM202 346h2v2h-2zM202 348h2v2h-2zM200 350h2v2h-2zM204 350h2v2h-2zM196 352h4v2h-4zM206 352h4v2h-4zM200 354h2v2h-2zM204 354h2v2h-2zM202 356h2v2h-2zM202 358h2v2h-2zM344 254h2v2h-2zM344 256h2v2h-2zM342 258h2v2h-2zM346 258h2v2h-2zM338 260h4v2h-4zM348 260h4v2h-4zM342 262h2v2h-2zM346 262h2v2h-2zM344 264h2v2h-2zM344 266h2v2h-2zM56 200h2v2h-2zM54 202h6v2h-6zM56 204h2v2h-2zM202 12h2v2h-2zM200 14h6v2h-6zM202 16h2v2h-2zM18 -8h2v2h-2zM18 -6h2v2h-2zM16 -4h2v2h-2zM20 -4h2v2h-2zM12 -2h4v2h-4zM22 -2h4v2h-4zM16 0h2v2h-2zM20 0h2v2h-2zM18 2h2v2h-2zM18 4h2v2h-2zM18 432h2v2h-2zM18 434h2v2h-2zM16 436h2v2h-2zM20 436h2v2h-2zM12 438h4v2h-4zM22 438h4v2h-4zM16 440h2v2h-2zM20 440h2v2h-2zM18 442h2v2h-2zM18 444h2v2h-2zM320 394h2v2h-2zM320 396h2v2h-2zM318 398h2v2h-2zM322 398h2v2h-2zM314 400h4v2h-4zM324 400h4v2h-4zM318 402h2v2h-2zM322 402h2v2h-2zM320 404h2v2h-2zM320 406h2v2h-2zM178 346h2v2h-2zM176 348h6v2h-6zM178 350h2v2h-2zM352 280h2v2h-2zM350 282h6v2h-6zM352 284h2v2h-2zM250 400h2v2h-2zM250 402h2v2h-2zM248 404h2v2h-2zM252 404h2v2h-2zM244 406h4v2h-4zM254 406h4v2h-4zM248 408h2v2h-2zM252 408h2v2h-2zM250 410h2v2h-2zM250 412h2v2h-2zM70 72h2v2h-2zM68 74h6v2h-6zM70 76h2v2h-2zM376 266h2v2h-2zM376 268h2v2h-2zM374 270h2v2h-2zM378 270h2v2h-2zM370 272h4v2h-4zM380 272h4v2h-4zM374 274h2v2h-2zM378 274h2v2h-2zM376 276h2v2h-2zM376 278h2v2h-2zM84 204h2v2h-2zM82 206h6v2h-6zM84 208h2v2h-2zM388 368h2v2h-2zM386 370h6v2h-6zM388 372h2v2h-2zM292 140h2v2h-2zM290 142h6v2h-6zM292 144h2v2h-2zM134 102h2v2h-2zM134 104h2v2h-2zM132 106h2v2h-2zM136 106h2v2h-2zM128 108h4v2h-4zM138 108h4v2h-4zM132 110h2v2h-2zM136 110h2v2h-2zM134 112h2v2h-2zM134 114h2v2h-2zM268 298h2v2h-2zM268 300h2v2h-2zM266 302h2v2h-2zM270 302h2v2h-2zM262 304h4v2h-4zM272 304h4v2h-4zM266 306h2v2h-2zM270 306h2v2h-2zM268 308h2v2h-2zM268 310h2v2h-2zM56 382h2v2h-2zM56 384h2v2h-2zM54 386h2v2h-2zM58 386h2v2h-2zM50 388h4v2h-4zM60 388h4v2h-4zM54 390h2v2h-2zM58 390h2v2h-2zM56 392h2v2h-2zM56 394h2v2h-2zM269 397h2v2h-2zM200 111h2v2h-2zM423 210h2v2h-2zM259 270h2v2h-2zM103 163h2v2h-2zM279 121h2v2h-2zM143 165h2v2h-2zM348 115h2v2h-2zM337 20h2v2h-2zM302 393h2v2h-2zM376 324h2v2h-2zM162 164h2v2h-2zM145 35h2v2h-2zM408 393h2v2h-2zM274 183h2v2h-2zM159 20h2v2h-2zM249 133h2v2h-2zM181 132h2v2h-2zM364 69h2v2h-2zM310 197h2v2h-2zM292 118h2v2h-2zM392 261h2v2h-2zM227 282h2v2h-2zM27 274h2v2h-2zM287 76h2v2h-2zM438 114h2v2h-2zM414 115h2v2h-2zM298 301h2v2h-2zM88 69h2v2h-2zM166 374h2v2h-2zM405 431h2v2h-2zM420 102h2v2h-2zM171 257h2v2h-2zM87 419h2v2h-2zM312 168h2v2h-2zM14 417h2v2h-2zM277 209h2v2h-2zM264 208h2v2h-2zM126 327h2v2h-2zM227 42h2v2h-2z'/%3E%3C/svg%3E") 0 0/440px 440px;animation:bg-a 180s linear infinite}
+body::after{inset:-300px 0 0 -300px;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300' shape-rendering='crispEdges'%3E%3Cpath fill='%23fff' fill-opacity='.04' d='M206 182h2v2h-2zM206 184h2v2h-2zM204 186h2v2h-2zM208 186h2v2h-2zM200 188h4v2h-4zM210 188h4v2h-4zM204 190h2v2h-2zM208 190h2v2h-2zM206 192h2v2h-2zM206 194h2v2h-2zM64 230h2v2h-2zM64 232h2v2h-2zM62 234h2v2h-2zM66 234h2v2h-2zM58 236h4v2h-4zM68 236h4v2h-4zM62 238h2v2h-2zM66 238h2v2h-2zM64 240h2v2h-2zM64 242h2v2h-2zM152 148h2v2h-2zM150 150h6v2h-6zM152 152h2v2h-2zM0 104h2v2h-2zM0 106h2v2h-2zM-2 108h2v2h-2zM2 108h2v2h-2zM-6 110h4v2h-4zM4 110h4v2h-4zM-2 112h2v2h-2zM2 112h2v2h-2zM0 114h2v2h-2zM0 116h2v2h-2zM300 104h2v2h-2zM300 106h2v2h-2zM298 108h2v2h-2zM302 108h2v2h-2zM294 110h4v2h-4zM304 110h4v2h-4zM298 112h2v2h-2zM302 112h2v2h-2zM300 114h2v2h-2zM300 116h2v2h-2zM20 234h2v2h-2zM18 236h6v2h-6zM20 238h2v2h-2zM68 6h2v2h-2zM68 8h2v2h-2zM66 10h2v2h-2zM70 10h2v2h-2zM62 12h4v2h-4zM72 12h4v2h-4zM66 14h2v2h-2zM70 14h2v2h-2zM68 16h2v2h-2zM68 18h2v2h-2zM220 260h2v2h-2zM218 262h6v2h-6zM220 264h2v2h-2zM148 32h2v2h-2zM146 34h6v2h-6zM148 36h2v2h-2zM110 42h2v2h-2zM108 44h6v2h-6zM110 46h2v2h-2zM36 274h2v2h-2zM34 276h6v2h-6zM36 278h2v2h-2zM164 96h2v2h-2zM164 98h2v2h-2zM162 100h2v2h-2zM166 100h2v2h-2zM158 102h4v2h-4zM168 102h4v2h-4zM162 104h2v2h-2zM166 104h2v2h-2zM164 106h2v2h-2zM164 108h2v2h-2zM258 62h2v2h-2zM258 64h2v2h-2zM256 66h2v2h-2zM260 66h2v2h-2zM252 68h4v2h-4zM262 68h4v2h-4zM256 70h2v2h-2zM260 70h2v2h-2zM258 72h2v2h-2zM258 74h2v2h-2zM62 288h2v2h-2zM60 290h6v2h-6zM62 292h2v2h-2zM224 226h2v2h-2zM222 228h6v2h-6zM224 230h2v2h-2zM218 34h2v2h-2zM216 36h6v2h-6zM218 38h2v2h-2zM276 258h2v2h-2zM276 260h2v2h-2zM274 262h2v2h-2zM278 262h2v2h-2zM270 264h4v2h-4zM280 264h4v2h-4zM274 266h2v2h-2zM278 266h2v2h-2zM276 268h2v2h-2zM276 270h2v2h-2zM108 128h2v2h-2zM108 130h2v2h-2zM106 132h2v2h-2zM110 132h2v2h-2zM102 134h4v2h-4zM112 134h4v2h-4zM106 136h2v2h-2zM110 136h2v2h-2zM108 138h2v2h-2zM108 140h2v2h-2zM6 20h2v2h-2zM6 22h2v2h-2zM4 24h2v2h-2zM8 24h2v2h-2zM0 26h4v2h-4zM10 26h4v2h-4zM4 28h2v2h-2zM8 28h2v2h-2zM6 30h2v2h-2zM6 32h2v2h-2zM214 297h2v2h-2zM164 223h2v2h-2zM66 182h2v2h-2zM166 186h2v2h-2zM53 50h2v2h-2zM103 277h2v2h-2zM103 178h2v2h-2zM91 30h2v2h-2zM232 111h2v2h-2zM269 286h2v2h-2zM121 296h2v2h-2zM287 176h2v2h-2zM264 146h2v2h-2zM112 73h2v2h-2zM262 48h2v2h-2zM231 144h2v2h-2zM250 15h2v2h-2zM76 86h2v2h-2zM125 50h2v2h-2zM20 100h2v2h-2zM7 63h2v2h-2zM250 238h2v2h-2z'/%3E%3C/svg%3E") 0 0/300px 300px;animation:bg-b 100s linear infinite}
+@keyframes bg-a{to{transform:translate(440px,440px)}}
+@keyframes bg-b{to{transform:translate(300px,300px)}}
+@media (prefers-reduced-motion:reduce){body::before,body::after{animation:none}}
+a{color:var(--accent-h);text-decoration:none}
+a:hover{text-decoration:underline}
+h1,h2,h3{margin:0;font-weight:650;letter-spacing:-.01em}
+h1{font-size:26px;line-height:1.2}
+h2{font-size:19px}
+h3{font-size:16px}
+p{margin:0}
+.wrap{width:100%;max-width:1120px;margin:0 auto;padding:0 20px}
+main.wrap{flex:1;padding-top:24px;padding-bottom:48px}
+.muted{color:var(--muted)}.dim{color:var(--dim)}.ok{color:var(--ok)}.bad{color:var(--bad)}.warn{color:var(--warn)}
+.mono{font-family:var(--mono)}
+.small{font-size:13px}
+.stack{display:grid;gap:16px}
+.row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.grow{flex:1;min-width:0}
+.hide{display:none!important}
+
+/* шапка */
+header.top{position:sticky;top:0;z-index:30;background:rgba(0,0,0,.78);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--line)}
+header.top .wrap{display:flex;align-items:center;gap:20px;height:64px}
+.logo{font:26px/1 var(--pix);color:#fff;white-space:nowrap;text-decoration:none!important}
+.logo b{font-weight:400;color:var(--accent)}
+nav.main{display:flex;gap:2px;margin-left:8px}
+nav.main a{color:var(--muted);padding:8px 12px;border-radius:var(--r-s);font-weight:500;text-decoration:none}
+nav.main a:hover{color:var(--text);background:var(--hover)}
+nav.main a.on{color:var(--text);background:var(--raised)}
+.top-right{margin-left:auto;display:flex;align-items:center;gap:8px}
+.chip{display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 14px;border-radius:999px;border:1px solid var(--line-2);
+  background:var(--surface);color:var(--text);font-weight:600;text-decoration:none!important;font-variant-numeric:tabular-nums;cursor:pointer}
+.chip:hover{border-color:var(--accent-line)}
+.chip svg{width:16px;height:16px;flex:none}
+@media (max-width:900px){nav.main{display:none}}
+@media (max-width:520px){.logo{font-size:22px}.chip .lbl{display:none}}
+
+/* выдвижное меню */
+.drawer{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.6);display:flex;justify-content:flex-end}
+.drawer[hidden]{display:none}
+.drawer .panel{width:min(360px,100%);height:100%;overflow:auto;background:var(--surface);border-left:1px solid var(--line);padding:16px;display:flex;flex-direction:column;gap:6px}
+.drawer .head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.drawer a.item{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-radius:var(--r-s);color:var(--text);text-decoration:none;font-weight:500}
+.drawer a.item:hover,.drawer a.item.on{background:var(--raised)}
+.drawer a.item::after{content:"›";color:var(--dim);font-size:20px;line-height:1}
+.drawer hr{border:0;border-top:1px solid var(--line);margin:8px 0;width:100%}
+
+/* элементы */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:20px}
+.card.tight{padding:14px 16px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:44px;padding:0 18px;border-radius:var(--r-s);border:1px solid transparent;
+  background:var(--accent);color:#fff;font:600 15px/1 var(--f);cursor:pointer;text-decoration:none!important;white-space:nowrap;transition:background .15s,border-color .15s}
+.btn:hover{background:var(--accent-h)}
+.btn.sec{background:var(--raised);border-color:var(--line-2);color:var(--text)}
+.btn.sec:hover{background:var(--hover);border-color:var(--accent-line)}
+.btn.ghost{background:transparent;border-color:var(--line-2);color:var(--text)}
+.btn.ghost:hover{background:var(--raised)}
+.btn.danger{background:var(--bad-soft);color:var(--bad);border-color:transparent}
+.btn.danger:hover{background:rgba(248,113,113,.2)}
+.btn.block{width:100%}
+.btn.small{height:36px;padding:0 12px;font-size:14px}
+.btn[disabled],.btn.off{opacity:.45;pointer-events:none}
+.btn svg{width:18px;height:18px}
+form.inline{display:inline}
+input[type=text],input[type=password],input[type=number],input[type=search],textarea,select{
+  width:100%;height:44px;padding:0 14px;border-radius:var(--r-s);border:1px solid var(--line-2);background:var(--bg);color:var(--text);
+  font:400 16px/1.3 var(--f);outline:none;transition:border-color .15s}
+textarea{height:auto;min-height:96px;padding:12px 14px;resize:vertical;line-height:1.45}
+input:focus,textarea:focus,select:focus{border-color:var(--accent)}
+input::placeholder,textarea::placeholder{color:var(--dim)}
+label.f{display:grid;gap:6px;font-size:14px;color:var(--muted)}
+.check{display:flex;gap:10px;align-items:flex-start;font-size:14px;color:var(--muted);cursor:pointer}
+.check input{width:18px;height:18px;margin:2px 0 0;accent-color:var(--accent);flex:none}
+.search{position:relative}
+.search svg{position:absolute;left:14px;top:50%;width:18px;height:18px;transform:translateY(-50%);color:var(--dim);pointer-events:none}
+.search input{padding-left:42px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+.tabs a{display:inline-flex;align-items:center;height:36px;padding:0 14px;border-radius:999px;border:1px solid var(--line-2);color:var(--muted);
+  font-weight:500;font-size:14px;text-decoration:none}
+.tabs a:hover{color:var(--text)}
+.tabs a.on{border-color:var(--accent-line);background:var(--accent-soft);color:var(--text)}
+.badge{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:999px;font-size:13px;font-weight:600;white-space:nowrap}
+.badge.ok{background:var(--ok-soft);color:var(--ok)}.badge.wait{background:var(--warn-soft);color:var(--warn)}
+.badge.off{background:var(--raised);color:var(--muted)}.badge.acc{background:var(--accent-soft);color:var(--accent-h)}
+.notice{padding:12px 16px;border-radius:var(--r-s);font-size:14px;border:1px solid transparent}
+.notice.ok{background:var(--ok-soft);border-color:rgba(74,222,128,.25)}
+.notice.bad{background:var(--bad-soft);border-color:rgba(248,113,113,.25)}
+.notice.info{background:var(--accent-soft);border-color:var(--accent-line)}
+.back{display:inline-flex;align-items:center;gap:6px;color:var(--muted);font-size:14px;text-decoration:none!important;margin-bottom:12px}
+.back:hover{color:var(--text)}
+.list{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.list>a,.list>div.li{display:flex;align-items:center;gap:14px;padding:14px 18px;color:var(--text);text-decoration:none}
+.list>*+*{border-top:1px solid var(--line)}
+.list>a:hover{background:var(--raised)}
+.list .chev{color:var(--dim);font-size:22px;line-height:1}
+.avatar{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;font-weight:700;font-size:16px;font-style:normal;color:#fff;flex:none;overflow:hidden}
+.avatar svg{display:block}
+img.avatar{display:block;object-fit:cover;background:var(--raised)}
+img.flag{display:inline-block;width:22px;height:16px;object-fit:cover;border-radius:3px;vertical-align:-2px;box-shadow:0 0 0 1px rgba(255,255,255,.08)}
+.empty{text-align:center;padding:48px 20px;color:var(--muted)}
+.empty b{display:block;color:var(--text);font-size:17px;margin-bottom:6px}
+.copy{cursor:pointer;border:0;background:none;color:var(--dim);padding:4px;border-radius:6px;display:inline-grid;place-items:center}
+.copy:hover{color:var(--text);background:var(--hover)}
+.copy svg{width:18px;height:18px}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:8px 18px;font-size:14px}
+.kv dt{color:var(--muted)}.kv dd{margin:0}
+.pager{display:flex;gap:8px;justify-content:center;margin-top:16px}
+
+/* подвал */
+footer.foot{border-top:1px solid var(--line);color:var(--dim);font-size:14px}
+footer.foot .wrap{display:flex;flex-wrap:wrap;gap:12px 28px;align-items:center;justify-content:space-between;padding-top:22px;padding-bottom:28px}
+footer.foot nav{display:flex;flex-wrap:wrap;gap:8px 22px}
+footer.foot a{color:var(--muted)}
+.langs{display:inline-flex;border:1px solid var(--line-2);border-radius:999px;overflow:hidden}
+.langs a{padding:5px 12px;color:var(--muted);font-size:13px;font-weight:600;text-decoration:none!important}
+.langs a.on{background:var(--raised);color:var(--text)}
+{% block style %}{% endblock %}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-copy" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M9 9h10v10H9zM5 15V5h10"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4-4"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M4 7h16M4 12h16M4 17h16"/></symbol>
+  <symbol id="i-wallet" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M3 7h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM3 7l13-3v3M16 13h2"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></symbol>
+  <symbol id="i-tg" viewBox="0 0 24 24"><path fill="currentColor" d="M21.5 4.2 2.9 11.4c-1.3.5-1.3 1.2-.2 1.6l4.8 1.5 1.8 5.6c.2.6.4.8.8.8.4 0 .6-.2.9-.5l2.3-2.2 4.7 3.5c.9.5 1.5.2 1.7-.8l3.1-14.6c.3-1.3-.5-1.8-1.3-1.5zM9.6 14.4l9-5.7c.4-.3.8-.1.5.2l-7.4 6.7-.3 3.2z"/></symbol>
+</svg>
+
+<header class="top">
+  <div class="wrap">
+    <a class="logo" href="{{ P }}">Shifr<b>SMS</b></a>
+    <nav class="main">
+      <a href="{{ P }}" class="{{ 'on' if active == 'catalog' }}">{{ tr('nav_catalog') }}</a>
+      {% if user %}
+      <a href="{{ P }}/orders" class="{{ 'on' if active == 'orders' }}">{{ tr('nav_orders') }}</a>
+      <a href="{{ P }}/support" class="{{ 'on' if active == 'support' }}">{{ tr('nav_support') }}</a>
+      {% endif %}
+    </nav>
+    <div class="top-right">
+      {% if user %}
+      <a class="chip" href="{{ P }}/balance" title="{{ tr('your_balance') }}"><svg><use href="#i-wallet"/></svg>{{ user.balance|rub }}</a>
+      {% else %}
+      <a class="chip" href="{{ P }}/login?next={{ path }}">{{ tr('nav_login') }}</a>
+      {% endif %}
+      <button class="chip" type="button" data-drawer-open aria-label="{{ tr('nav_menu') }}"><svg><use href="#i-menu"/></svg><span class="lbl">{{ tr('nav_menu') }}</span></button>
+    </div>
+  </div>
+</header>
+
+<div class="drawer" id="drawer" hidden>
+  <div class="panel">
+    <div class="head"><a class="logo" href="{{ P }}">Shifr<b>SMS</b></a><button class="chip" type="button" data-drawer-close>{{ tr('nav_close') }}</button></div>
+    {% if user %}<div class="card tight row"><div class="grow"><div class="small muted">{{ tr('your_balance') }}</div><b>{{ user.balance|rub }}</b></div>
+      <a class="btn small" href="{{ P }}/balance">{{ tr('topup') }}</a></div>{% endif %}
+    <a class="item {{ 'on' if active == 'catalog' }}" href="{{ P }}">{{ tr('nav_catalog') }}</a>
+    {% if user %}
+    <a class="item {{ 'on' if active == 'orders' }}" href="{{ P }}/orders">{{ tr('nav_orders') }}</a>
+    <a class="item {{ 'on' if active == 'invite' }}" href="{{ P }}/invite">{{ tr('nav_invite') }}</a>
+    <a class="item {{ 'on' if active == 'support' }}" href="{{ P }}/support">{{ tr('nav_support') }}</a>
+    <a class="item {{ 'on' if active == 'profile' }}" href="{{ P }}/profile">{{ tr('nav_profile') }}</a>
+    {% endif %}
+    <hr>
+    <a class="item {{ 'on' if active == 'api' }}" href="{{ P }}/api">{{ tr('nav_api') }}</a>
+    <a class="item {{ 'on' if active == 'faq' }}" href="{{ P }}/faq">{{ tr('nav_faq') }}</a>
+    <a class="item" href="https://t.me/ShifrSMSbot" target="_blank" rel="noopener">{{ tr('nav_bot') }}</a>
+    <a class="item" href="/partnership">{{ tr('nav_partner') }}</a>
+    <hr>
+    <div class="row"><span class="langs">{% for l in langs %}<a href="{{ P }}/lang/{{ l }}?next={{ path }}" class="{{ 'on' if l == lang }}">{{ l|upper }}</a>{% endfor %}</span></div>
+    {% if user %}
+    <form method="post" action="{{ P }}/logout" style="margin-top:auto"><input type="hidden" name="csrf" value="{{ csrf }}">
+      <button class="btn ghost block" type="submit">{{ tr('nav_logout') }}</button></form>
+    {% else %}
+    <a class="btn block" href="{{ P }}/login?next={{ path }}" style="margin-top:auto">{{ tr('nav_login') }}</a>
+    {% endif %}
+  </div>
+</div>
+
+<main class="wrap">
+  {% if flash %}<div class="notice {{ flash[0] }}" style="margin-bottom:18px">{{ flash[1] }}</div>{% endif %}
+  {% block content %}{% endblock %}
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <a class="logo" href="/" style="font-size:20px">Shifr<b>SMS</b></a>
+    <nav>
+      {% if terms_url %}<a href="{{ terms_url }}" target="_blank" rel="noopener">{{ tr('doc_terms') }}</a>{% endif %}
+      {% if privacy_url %}<a href="{{ privacy_url }}" target="_blank" rel="noopener">{{ tr('doc_privacy') }}</a>{% endif %}
+    </nav>
+    <span class="langs">{% for l in langs %}<a href="{{ P }}/lang/{{ l }}?next={{ path }}" class="{{ 'on' if l == lang }}">{{ l|upper }}</a>{% endfor %}</span>
+  </div>
+</footer>
+
+<script>
+(function(){
+  var d=document.getElementById('drawer');
+  document.addEventListener('click',function(e){
+    if(e.target.closest('[data-drawer-open]')){d.hidden=false;document.body.style.overflow='hidden'}
+    if(e.target.closest('[data-drawer-close]')||e.target===d){d.hidden=true;document.body.style.overflow=''}
+    var c=e.target.closest('[data-copy]');
+    if(c){
+      var v=c.getAttribute('data-copy');
+      (navigator.clipboard?navigator.clipboard.writeText(v):Promise.reject()).then(function(){
+        var old=c.getAttribute('title');c.setAttribute('title',{{ tr("copied")|tojson }});c.classList.add('ok');
+        setTimeout(function(){c.classList.remove('ok');c.setAttribute('title',old||'')},1400)});
+    }
+  });
+  window.localTimes=function(root){
+    (root||document).querySelectorAll('time[data-utc]').forEach(function(t){
+      var dt=new Date(t.getAttribute('data-utc')+'Z');if(isNaN(dt))return;
+      var o=t.dataset.fmt==='time'?{hour:'2-digit',minute:'2-digit'}:{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'};
+      t.textContent=dt.toLocaleString('{{ "ru-RU" if lang == "ru" else "en-GB" }}',o);
+    });
+  };
+  localTimes();
+  /* двойное нажатие не должно запускать вторую активацию */
+  document.addEventListener('submit',function(e){
+    var b=e.target.querySelector('button[type=submit],button:not([type])');
+    if(e.target.classList.contains('once')||e.target.classList.contains('lv-form')){if(b){b.classList.add('busy');b.disabled=true}}
+  });
+  window.CSRF='{{ csrf }}';
+})();
+</script>
+{% block script %}{% endblock %}
+</body>
+</html>

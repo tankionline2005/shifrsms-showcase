@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Заказы</h1>
+<div class="filters">
+  {% for s, t in [('', 'Все'), ('waiting', 'Ожидают'), ('received', 'SMS получена'), ('completed', 'Завершены'), ('cancelled', 'Отменены'), ('replaced', 'Заменены'), ('expired', 'Истекли')] %}
+  <a href="?status={{ s }}" class="{{ 'on' if status==s }}">{{ t }}</a>
+  {% endfor %}
+</div>
+{% include "_orders_table.html" %}
+{% endblock %}

@@ -1,0 +1,19 @@
+{# «Баланс» владельца → история #}
+{% import "_paged.html" as pg %}
+<div class="tablewrap"><table>
+  <tr><th>Дата ({{ tz_label() }})</th><th>Операция</th><th>Подробности</th><th class="num">Сумма</th></tr>
+  {% for x in t.rows %}
+  <tr>
+    <td>{{ x.created_at|msk }}</td>
+    <td>{{ kinds.get(x.kind, x.kind) }}</td>
+    <td class="muted" style="font-size:13px">
+      {% if x.kind == 'profit' %}активация #{{ x.order_id }}: прибыль {{ x.profit_rub|rub }}, курс {{ '%.2f' % x.usd_rate }} ₽/$
+      {% else %}{{ x.comment or '' }}{% if x.actor %} · {{ x.actor }}{% endif %}{% endif %}
+    </td>
+    <td class="num {{ 'ok' if x.amount_usd > 0 else 'bad' }}">{{ '+' if x.amount_usd > 0 else '−' }}{{ x.amount_usd|abs|usd }}</td>
+  </tr>
+  {% else %}
+  <tr><td colspan="4" class="muted">{{ 'Ничего не найдено' if t.q else 'Пока ни одного начисления' }}</td></tr>
+  {% endfor %}
+</table></div>
+{{ pg.pager(t) }}

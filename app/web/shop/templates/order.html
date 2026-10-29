@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}{{ tr('order_title', id=o.id) }} — ShifrSMS{% endblock %}
+{% block style %}
+#oc{display:grid;gap:18px;max-width:720px}
+.oc-head{display:flex;gap:14px;align-items:flex-start}
+.oc-phone,.oc-sms{background:var(--raised);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;display:grid;gap:6px}
+.oc-sms{border-color:rgba(74,222,128,.3);background:linear-gradient(180deg,rgba(74,222,128,.07),transparent)}
+.phone{font-size:28px;font-weight:500;letter-spacing:.02em}
+.code{font-size:34px;font-weight:500;letter-spacing:.08em;color:var(--ok)}
+.oc-sms .text{word-break:break-word}
+.oc-actions{display:flex;flex-wrap:wrap;gap:10px}
+.copy.ok{color:var(--ok)}
+@media (max-width:520px){.phone{font-size:22px}.code{font-size:28px}.oc-actions .btn{flex:1}}
+{% endblock %}
+{% block content %}
+<a class="back" href="{{ P }}/orders">‹ {{ tr('orders_title') }}</a>
+<div class="card" id="oc" data-active="{{ 1 if o.is_active else 0 }}">{% include "_order_card.html" %}</div>
+{% endblock %}
+{% block script %}
+<script>
+(function(){
+  var box=document.getElementById('oc');
+  function pad(n){return n<10?'0'+n:n}
+  function tick(){
+    box.querySelectorAll('[data-countdown]').forEach(function(el){
+      var left=Math.round((new Date(el.dataset.countdown+'Z')-new Date())/1000);
+      if(left<=0){el.textContent='0:00';if(el.hasAttribute('data-done-hide')){el.style.display='none';
+        if(el.previousElementSibling)el.previousElementSibling.style.display='none'}return}
+      el.textContent=Math.floor(left/60)+':'+pad(left%60);
+    });
+  }
+  tick();setInterval(tick,1000);
+  /* пока активация идёт — подтягиваем карточку: код появится сам */
+  var busy=false;
+  function poll(){
+    if(busy||box.dataset.active!=='1'||document.hidden)return;
+    busy=true;
+    fetch(location.pathname+'/card',{credentials:'same-origin',cache:'no-store'}).then(function(r){
+      if(!r.ok)return;var act=r.headers.get('X-Active');
+      return r.text().then(function(h){
+        if(h&&h!==box.dataset.last){box.dataset.last=h;box.innerHTML=h;localTimes(box);tick()}
+        box.dataset.active=act;
+      });
+    }).catch(function(){}).finally(function(){busy=false});
+  }
+  setInterval(poll,4000);
+  document.addEventListener('visibilitychange',poll);
+})();
+</script>
+{% endblock %}

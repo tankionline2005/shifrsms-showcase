@@ -1,0 +1,173 @@
+{# Картинка с загрузкой: выбрали файл — он сразу уходит на сервер (прогресс поверх картинки), сервер
+   сохраняет его и отвечает адресом лёгкого превью, которое встаёт на место старой картинки без перезагрузки.
+   Нажатие на картинку — исходник на весь экран, нажатие в любом месте — закрыть.
+   Подключение: {% import "_pic.html" as pic %}, поле — pic.field(...), один раз на странице — pic.assets(). #}
+
+{% macro field(upload, thumb="", full="", remove="", confirm="", empty="без фото", add="Прикрепить фото",
+               replace="Заменить фото", token=False) -%}
+<div class="pic-field" data-upload="{{ upload }}" data-remove="{{ remove }}" data-confirm="{{ confirm }}"
+     data-add="{{ add }}" data-replace="{{ replace }}">
+  <div class="pic{% if thumb %} has{% endif %}">
+    {% if thumb %}<img src="{{ thumb }}" data-full="{{ full }}" alt="" title="Открыть в исходном качестве">{% endif %}
+    <div class="pic-empty muted">{{ empty }}</div>
+    <div class="pic-progress">
+      <svg viewBox="0 0 36 36" aria-hidden="true"><circle class="track" cx="18" cy="18" r="15.9"/>
+        <circle class="bar" cx="18" cy="18" r="15.9" pathLength="100"/></svg>
+      <span></span>
+    </div>
+  </div>
+  <div class="pic-actions">
+    <label class="file"><span>{{ replace if thumb else add }}</span><input type="file" accept="image/jpeg,image/png,image/webp"></label>
+    {% if remove %}<button type="button" class="secondary pic-remove">Убрать</button>{% endif %}
+  </div>
+  {% if token %}<input type="hidden" name="photo_token" value="">{% endif %}
+  <div class="pic-error bad"></div>
+</div>
+{%- endmacro %}
+
+{% macro assets() -%}
+<style>
+.pic-field{display:flex;flex-direction:column;gap:8px;font-size:13px}
+.pic{position:relative;border-radius:10px;overflow:hidden;background:var(--fill-2)}
+.pic img{display:block;width:100%;max-height:200px;object-fit:cover;cursor:zoom-in}
+.pic.busy img{cursor:default}
+.pic.has .pic-empty{display:none}
+.pic-empty{border:1px dashed var(--border);border-radius:10px;padding:28px 0;text-align:center}
+.pic-progress{position:absolute;inset:0;display:none;align-items:center;justify-content:center;
+  background:color-mix(in srgb,var(--bg) 55%,transparent);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
+.pic.busy .pic-progress{display:flex}
+.pic-progress svg{width:56px;height:56px;transform:rotate(-90deg)}
+.pic-progress circle{fill:none;stroke-width:3}
+.pic-progress .track{stroke:var(--fill)}
+.pic-progress .bar{stroke:var(--accent);stroke-linecap:round;stroke-dasharray:100;stroke-dashoffset:100;
+  transition:stroke-dashoffset .15s}
+.pic-progress span{position:absolute;font-size:12px;font-weight:600;font-variant-numeric:tabular-nums}
+/* файл отправлен — сервер сохраняет и делает превью: кольцо крутится */
+.pic.processing .pic-progress .bar{stroke-dashoffset:70;animation:pic-spin .8s linear infinite;transform-box:fill-box;transform-origin:center}
+@keyframes pic-spin{to{transform:rotate(360deg)}}
+.pic-actions{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.pic-actions .file{cursor:pointer;color:var(--accent)}
+.pic-actions .file input{display:none}
+.pic-actions .pic-remove{padding:4px 12px;font-size:13px}
+.pic:not(.has) + .pic-actions .pic-remove{display:none}
+.pic-field.busy .pic-actions{opacity:.4;pointer-events:none}
+.pic-error:empty{display:none}
+
+#lightbox{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;
+  background:color-mix(in srgb,var(--bg) 92%,transparent);cursor:zoom-out;animation:pic-fade .15s}
+#lightbox[hidden]{display:none}
+#lightbox img{max-width:100vw;max-height:100vh;max-height:100dvh;object-fit:contain}
+#lightbox.loading::after{content:"";position:absolute;top:16px;right:16px;width:20px;height:20px;border-radius:50%;
+  border:2px solid var(--fill);border-top-color:var(--text);animation:pic-spin .8s linear infinite}
+@keyframes pic-fade{from{opacity:0}}
+</style>
+<script>
+(() => {
+  // просмотр на весь экран: сначала увеличенное превью (уже скачано), потом исходник, когда загрузится.
+  // Один раз на страницу: автообновление страницы запускает этот скрипт заново
+  if (!document.getElementById("lightbox")) {
+    const box = Object.assign(document.createElement("div"), {id: "lightbox", hidden: true});
+    const big = document.createElement("img");
+    box.append(big);
+    document.body.append(box);
+    let loading = null;
+    const close = () => {
+      box.hidden = true; loading = null; big.removeAttribute("src");
+      box.classList.remove("loading"); document.body.style.overflow = "";
+    };
+    box.addEventListener("click", close);
+    document.addEventListener("keydown", e => { if (e.key === "Escape" && !box.hidden) close(); });
+    document.addEventListener("click", e => {
+      const img = e.target.closest(".pic img[data-full]");
+      if (!img || img.closest(".pic").classList.contains("busy")) return;
+      big.src = img.currentSrc || img.src;
+      box.hidden = false; box.classList.add("loading"); document.body.style.overflow = "hidden";
+      const full = new Image();
+      loading = full;
+      full.onload = () => { if (loading === full) { big.src = full.src; box.classList.remove("loading"); } };
+      full.onerror = () => box.classList.remove("loading");
+      full.src = img.dataset.full;
+    });
+  }
+
+  const MAX = 10 * 1024 * 1024;
+  document.querySelectorAll(".pic-field:not([data-ready])").forEach(field => {
+    field.dataset.ready = "1";
+    const pic = field.querySelector(".pic"), input = field.querySelector("input[type=file]");
+    const label = field.querySelector(".file span"), rm = field.querySelector(".pic-remove");
+    const err = field.querySelector(".pic-error"), token = field.querySelector("input[name=photo_token]");
+    const pct = field.querySelector(".pic-progress span"), bar = field.querySelector(".pic-progress .bar");
+
+    const show = (thumb, full) => {
+      let img = pic.querySelector("img");
+      if (thumb) {
+        if (!img) {
+          img = Object.assign(document.createElement("img"), {alt: "", title: "Открыть в исходном качестве"});
+          pic.prepend(img);
+        }
+        img.src = thumb; img.dataset.full = full;
+      } else if (img) img.remove();
+      pic.classList.toggle("has", !!thumb);
+      label.textContent = thumb ? field.dataset.replace : field.dataset.add;
+      field.dispatchEvent(new CustomEvent("pic-change", {bubbles: true, detail: {has: !!thumb}}));
+    };
+    const progress = part => {
+      const p = Math.min(100, Math.round(part * 100));
+      pct.textContent = part >= 1 ? "" : p + "%";
+      bar.style.strokeDashoffset = part >= 1 ? "" : 100 - p;
+      pic.classList.toggle("processing", part >= 1);
+    };
+    const busy = on => {
+      pic.classList.toggle("busy", on); field.classList.toggle("busy", on); input.disabled = on;
+      if (!on) { pic.classList.remove("processing"); bar.style.strokeDashoffset = ""; }
+    };
+
+    input.addEventListener("change", () => {
+      const file = input.files[0];
+      input.value = "";
+      if (!file) return;
+      err.textContent = "";
+      if (file.size > MAX) { err.textContent = "Фото больше 10 МБ — Telegram такое не примет."; return; }
+      const data = new FormData();
+      data.append("photo", file);
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", field.dataset.upload);
+      xhr.setRequestHeader("X-Upload", "1");
+      xhr.upload.onprogress = e => e.lengthComputable && progress(e.loaded / e.total);
+      xhr.upload.onload = () => progress(1);
+      xhr.onload = () => {
+        let r = null;
+        try { r = JSON.parse(xhr.responseText); } catch (e) {}
+        if (!r || r.error) {
+          busy(false);
+          err.textContent = r ? r.error : xhr.responseURL.includes("/login")
+            ? "Сессия закончилась — обновите страницу и войдите заново." : "Не получилось загрузить — попробуйте ещё раз.";
+          return;
+        }
+        if (token) token.value = r.token || "";
+        // новое превью встаёт на место старой картинки, когда уже скачано — без мигания
+        const pre = new Image();
+        pre.onload = pre.onerror = () => { show(r.thumb, r.full); busy(false); };
+        pre.src = r.thumb;
+      };
+      xhr.onerror = () => { busy(false); err.textContent = "Нет связи с сервером — попробуйте ещё раз."; };
+      progress(0);
+      busy(true);
+      xhr.send(data);
+    });
+
+    rm && rm.addEventListener("click", async () => {
+      if (field.dataset.confirm && !confirm(field.dataset.confirm)) return;
+      err.textContent = "";
+      if (field.dataset.remove === "local") { token.value = ""; show(""); return; }  // фото ещё не в сообщении
+      try {
+        const r = await fetch(field.dataset.remove, {method: "POST", headers: {"X-Upload": "1"}, credentials: "same-origin"});
+        const j = await r.json();
+        if (j.error) { err.textContent = j.error; return; }
+        show("");
+      } catch (e) { err.textContent = "Не получилось — обновите страницу и попробуйте ещё раз."; }
+    });
+  });
+})();
+</script>
+{%- endmacro %}

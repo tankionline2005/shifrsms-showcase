@@ -1,0 +1,29 @@
+{# Вход / привязка / сброс через Telegram: кнопки [data-tg="login|link|reset"] — ссылка на бота, ждём подтверждения #}
+<script>
+(function(){
+  var timer=null;
+  function msg(t,kind){var w=document.getElementById('tg-wait');if(!w)return;w.className='notice '+(kind||'info');w.textContent=t;w.classList.remove('hide')}
+  document.addEventListener('click',function(e){
+    var b=e.target.closest('[data-tg]');if(!b)return;
+    var body={purpose:b.dataset.tg,csrf:window.CSRF};
+    if(body.purpose==='reset'){var l=document.getElementById('reset-login');body.login=l?l.value.trim():'';if(!body.login){l&&l.focus();return}}
+    var win=window.open('about:blank','_blank');  /* окно открываем сразу — иначе браузер заблокирует его как всплывающее */
+    fetch('{{ P }}/tg/start',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+      .then(function(r){return r.json()}).then(function(d){
+        if(d.error){if(win)win.close();msg(d.error,'bad');return}
+        if(win){win.location=d.url}else{location.href=d.url}
+        msg({{ tr("tg_waiting")|tojson }});
+        clearInterval(timer);
+        var next=b.dataset.next||new URLSearchParams(location.search).get('next')||'';
+        timer=setInterval(function(){
+          fetch('{{ P }}/tg/status?token='+encodeURIComponent(d.token)+(next?'&next='+encodeURIComponent(next):''),{credentials:'same-origin',cache:'no-store'})
+            .then(function(r){return r.json()}).then(function(s){
+              if(s.status==='pending')return;
+              clearInterval(timer);
+              if(s.status==='ok'){location.href=s.next||'{{ P }}'}else{msg(s.message||'—','bad')}
+            }).catch(function(){});
+        },2000);
+      }).catch(function(){if(win)win.close();msg({{ tr("err_try_again")|tojson }},'bad')});
+  });
+})();
+</script>

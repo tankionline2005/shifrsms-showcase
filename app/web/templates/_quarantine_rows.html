@@ -1,0 +1,16 @@
+{% for it in items %}
+  <tr>
+    <td>{{ it.row.provider }}</td>
+    <td>{{ it.row.supplier or it.row.supplier_id or '—' }}</td>
+    <td>{{ it.service }}</td>
+    <td>{{ it.country }}</td>
+    <td>{{ 'все' if it.row.up_to >= 999999 else '$%.4f' % it.row.up_to }}</td>
+    <td>{{ it.row.until|msk }}</td>
+    <td style="font-size:12px;max-width:320px">{{ it.row.reason or '' }}</td>
+    <td>
+      <form method="post" action="{{ A }}/quarantine/{{ it.row.id }}/remove" class="inline">
+        <button class="secondary">Снять</button>
+      </form>
+    </td>
+  </tr>
+{% endfor %}

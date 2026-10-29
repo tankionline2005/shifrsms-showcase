@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% macro group_card(title, defs) -%}
+  <div class="card">
+  <h2 style="margin-top:0">{{ title }}</h2>
+  {% for d in defs %}
+  <div class="field"{% if d.show_if %} data-show-if="{{ d.show_if[0] }}" data-show-value="{{ d.show_if[1] }}"{% endif %}>
+    <label for="{{ d.key }}"><b>{{ d.label }}</b>{% if d.help %}<small>{{ d.help }}</small>{% endif %}</label>
+    <div>
+      {% if d.type == 'bool' %}
+        <input type="checkbox" class="switch" id="{{ d.key }}" name="{{ d.key }}" {{ 'checked' if values[d.key] in ('1','true','on') }}>
+      {% elif d.type == 'chat' %}
+        <select id="{{ d.key }}" name="{{ d.key }}">
+          {% for v, t in chat_choices[d.key] %}<option value="{{ v }}" {{ 'selected' if values[d.key]==v }}>{{ t }}</option>{% endfor %}
+        </select>
+      {% elif d.type == 'choice' %}
+        <select id="{{ d.key }}" name="{{ d.key }}">
+          {% for v, t in d.choices %}<option value="{{ v }}" {{ 'selected' if values[d.key]==v }}>{{ t }}</option>{% endfor %}
+        </select>
+      {% else %}
+        <input type="text" id="{{ d.key }}" name="{{ d.key }}" value="{{ values[d.key] }}">
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+  </div>
+{%- endmacro %}
+
+{% block content %}
+<style>
+/* две независимые колонки: карточки разной высоты не оставляют пустот */
+.settings-cols{display:grid;grid-template-columns:1fr 1fr;gap:0 16px;align-items:start}
+@media (max-width:1100px){.settings-cols{grid-template-columns:1fr}}
+.settings-cols .field{grid-template-columns:minmax(0,1.25fr) minmax(0,1fr)}
+.settings-cols input[type=text],.settings-cols select{width:100%;box-sizing:border-box}
+.menu-images{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+.menu-image{background:var(--fill-2);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:8px}
+.menu-image .pic img{aspect-ratio:2/1;max-height:none}
+.menu-image .pic-empty{aspect-ratio:2/1;padding:0;display:flex;align-items:center;justify-content:center}
+</style>
+<h1>Настройки</h1>
+{% if saved %}<p class="ok">Сохранено.</p>{% endif %}
+{% if error %}<p class="bad">Остальное сохранено, но не сохранено: {{ error }}.</p>{% endif %}
+<form method="post">
+  <div class="settings-cols">
+    <div>{% for title, defs in groups[0::2] %}{{ group_card(title, defs) }}{% endfor %}</div>
+    <div>{% for title, defs in groups[1::2] %}{{ group_card(title, defs) }}{% endfor %}</div>
+  </div>
+  <p><button>Сохранить</button></p>
+</form>
+
+<script>
+// поля, которые зависят от другого (наценка — от типа наценки), видны только при нужном значении
+(() => {
+  const deps = [...document.querySelectorAll("[data-show-if]")];
+  const update = () => deps.forEach(el => {
+    el.hidden = document.getElementById(el.dataset.showIf).value !== el.dataset.showValue;
+  });
+  new Set(deps.map(el => el.dataset.showIf))
+    .forEach(key => document.getElementById(key).addEventListener("change", update));
+  update();
+})();
+</script>
+
+{% import "_pic.html" as pic %}
+<div class="card" id="menu-images">
+  <h2 style="margin-top:0">Картинки меню</h2>
+  <p class="muted" style="font-size:13px;margin-top:-4px">Картинка приходит вместе с разделом меню бота, текст раздела — подписью
+    к ней; при переходах внутри раздела картинка остаётся. Лучше всего — широкая, примерно 2:1. JPG, PNG или WEBP до 10 МБ.</p>
+  {% if image_error %}<p class="bad">{{ image_error }}</p>{% endif %}
+  <div class="menu-images">
+    {% for key, title in menu_items.items() %}
+    <div class="menu-image">
+      <b>{{ title }}</b>
+      {% set base = A ~ "/settings/menu-image/" ~ key %}
+      {{ pic.field(base, thumb=(base ~ "?size=thumb&v=" ~ menu_ver[key]) if menu_ver[key] else "",
+                   full=(base ~ "?v=" ~ menu_ver[key]) if menu_ver[key] else "", remove=base ~ "/delete",
+                   confirm="Удалить картинку «" ~ title ~ "»?", empty="без картинки", add="Загрузить",
+                   replace="Заменить") }}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{{ pic.assets() }}
+
+<div class="card">
+  <b>Пример расчёта цены с текущими настройками</b>
+  <table style="margin-top:8px">
+    <tr><th>Закупка у площадки</th><th>Цена в боте</th></tr>
+    {% for cost, price in example %}<tr><td>${{ cost }}</td><td>{{ price|rub }}</td></tr>{% endfor %}
+  </table>
+</div>
+{% endblock %}

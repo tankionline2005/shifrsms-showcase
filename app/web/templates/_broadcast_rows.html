@@ -1,0 +1,12 @@
+{% for b in items %}{% set st = stats[b.id] %}
+  <tr>
+    <td><a href="{{ A }}/broadcasts/{{ b.id }}">{{ b.created_at|msk }}</a></td>
+    <td>{{ segments[b.segment][0] if b.segment in segments else b.segment }}</td>
+    <td style="max-width:360px">{% if b.photo %}<span class="badge">фото</span> {% endif %}{{ b.text[:80] }}{{ '…' if b.text|length > 80 }}</td>
+    <td>{{ statuses.get(b.status, b.status) }}</td>
+    <td class="num">{{ st.get('sent', 0) }}{% if st.get('deleted') %} <span class="muted" title="удалено при отмене">(−{{ st.deleted }})</span>{% endif %} / {{ b.total }}</td>
+    <td class="num">{{ st.get('failed', 0) }}</td>
+    <td class="num">{{ st.get('blocked', 0) }}</td>
+    <td><a class="btn secondary" style="white-space:nowrap" href="{{ A }}/broadcasts?repeat={{ b.id }}">Повторить рассылку</a></td>
+  </tr>
+{% endfor %}

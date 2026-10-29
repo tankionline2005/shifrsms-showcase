@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+.owners{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+.owners form{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.owners input[type=password]{flex:1;min-width:180px}
+</style>
+<h1>Владельцы</h1>
+{% if error %}<div class="notice bad">{{ error }}</div>{% endif %}
+{% if saved %}<div class="notice ok">{{ saved }}</div>{% endif %}
+
+<div class="card muted" style="font-size:13px">
+  Владельцы входят в панель своим логином, паролем и кодом из приложения-аутентификатора, у каждого — свой баланс
+  прибыли. Первый пароль задаётся здесь; при первом входе владелец привязывает аутентификатор по QR-коду.
+  {% if admin_open %}<br><b class="warn">Общий вход admin работает, пока оба владельца не привяжут аутентификатор,
+  потом закрывается сам.</b>{% else %}<br>Общий вход admin закрыт.{% endif %}
+</div>
+
+<div class="owners">
+  {% for o in owners_ %}
+  <div class="card">
+    <h3 style="margin:0 0 6px">{{ o.login }}</h3>
+    <div style="font-size:14px">
+      Пароль: {% if o.password_hash %}<span class="ok">задан</span>{% else %}<span class="warn">не задан</span>{% endif %}<br>
+      Аутентификатор: {% if o.totp_secret %}<span class="ok">привязан</span>{% else %}<span class="warn">не привязан</span>{% endif %}<br>
+      Доля прибыли: {{ '%g' % o.share }}%
+    </div>
+    {% if not o.totp_secret %}
+    <form method="post" action="{{ A }}/owners/{{ o.id }}/password">
+      <input type="password" name="password" placeholder="{{ 'Новый пароль' if o.password_hash else 'Пароль' }}, от 10 символов"
+             minlength="10" autocomplete="new-password" required>
+      <button>{{ 'Сменить' if o.password_hash else 'Задать' }}</button>
+    </form>
+    {% else %}
+    <p class="muted" style="font-size:13px;margin:10px 0 0">Пароль меняет сам владелец на своём «Балансе». Потерян телефон
+      с аутентификатором — сброс только с сервера.</p>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

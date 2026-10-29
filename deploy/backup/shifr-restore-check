@@ -1,0 +1,22 @@
+#!/bin/bash
+# Проверка восстановления: последняя копия из облака -> расшифровка (ключ из stdin) -> временная база -> сверка.
+set -euo pipefail
+cd /opt/shifr
+R=$(mktemp -d); trap 'rm -rf "$R"; docker compose exec -T db psql -U shifr -d postgres -qc "drop database if exists shifr_restoretest" >/dev/null' EXIT
+RC=(rclone --config /etc/shifr-backup/rclone.conf)
+F=$("${RC[@]}" lsf --files-only gdrive:shifrsms-backup | sort | tail -1)
+echo "копия: $F"
+"${RC[@]}" copyto "gdrive:shifrsms-backup/$F" "$R/b.age"
+age -d -i /dev/stdin -o "$R/b.tar" "$R/b.age"
+tar -C "$R" -xf "$R/b.tar"
+for f in db.dump env docker-compose.yml Caddyfile; do printf '%s: %s байт\n' "$f" "$(stat -c %s "$R/$f")"; done
+cmp -s "$R/env" .env && echo ".env совпадает с сервером"
+cmp -s "$R/Caddyfile" Caddyfile && cmp -s "$R/docker-compose.yml" docker-compose.yml && echo "Caddyfile и docker-compose.yml совпадают"
+docker compose exec -T db psql -U shifr -d postgres -qc "drop database if exists shifr_restoretest" -c "create database shifr_restoretest owner shifr"
+docker compose exec -T db pg_restore -U shifr -d shifr_restoretest --no-owner --exit-on-error < "$R/db.dump" && echo "база восстановлена"
+Q="select string_agg(t||'='||n, ' ' order by t) from (select table_name t, (xpath('/row/c/text()', query_to_xml(format('select count(*) c from %I', table_name), false, true, '')))[1]::text n from information_schema.tables where table_schema='public' and table_type='BASE TABLE') x"
+docker compose exec -T db psql -U shifr -d shifr_restoretest -tAc "$Q" | tr ' ' '\n' > "$R/a.txt"
+docker compose exec -T db psql -U shifr -d shifr -tAc "$Q" | tr ' ' '\n' > "$R/b.txt"
+echo "таблиц: $(wc -l < "$R/a.txt")"
+if diff "$R/a.txt" "$R/b.txt"; then echo "число строк во всех таблицах совпадает с рабочей базой"; else echo "(выше — разница: новые записи после копии)"; fi
+echo "users/balances: $(docker compose exec -T db psql -U shifr -d shifr_restoretest -tAc "select count(*)||' / '||sum(balance) from users")"

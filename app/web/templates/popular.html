@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+.pop-wrap{display:grid;grid-template-columns:minmax(300px,520px) minmax(260px,1fr);gap:20px;align-items:start}
+@media (max-width:860px){.pop-wrap{grid-template-columns:1fr}}
+/* «телефон» в тёмной теме Telegram */
+.tg{background:#0e1621;border-radius:14px;padding:14px 12px 18px;color:#f5f5f5;font-size:14px}
+.tg-bubble{background:#182533;border-radius:12px 12px 12px 4px;padding:10px 12px;margin-bottom:6px;line-height:1.4}
+.tg-bubble b{font-weight:600}
+.tg-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+.tg-btn{background:#1e2c3a;border-radius:8px;padding:11px 8px;text-align:center;font-weight:600;cursor:grab;
+  position:relative;user-select:none;min-height:42px;display:flex;align-items:center;justify-content:center;word-break:break-word}
+.tg-btn:hover{background:#26384a}
+.tg-btn.blue{background:#3390ec}  /* «Выделить синим» — так кнопка выглядит в боте */
+.tg-btn.blue:hover{background:#4a9ff0}
+.tg-btn.blue .pop{color:#000}  /* зелёный процент на синем не читается */
+.tg-btn.off{opacity:.38}
+.tg-btn .pop{color:#4ade80;margin-left:8px;font-size:13px}
+.tg-btn .x{position:absolute;top:2px;right:6px;font-size:13px;color:#8a9aa9;cursor:pointer;display:none;padding:2px}
+.tg-btn:hover .x{display:block}
+.tg-btn .x:hover{color:#ff6b6b}
+.tg-btn.sortable-ghost{opacity:.25;outline:2px dashed #5ea0e6}
+.tg-btn.sortable-chosen{background:#2f4a66}
+.tg-sep{grid-column:1/-1;text-align:center;color:#ff5c5c;font-weight:600;padding:8px 0 4px;font-size:13px;
+  border-top:1px solid #243446;margin-top:6px;cursor:default}
+.tg-sep:first-child{border-top:0;margin-top:0;padding-top:0}
+.tg-all{background:#1e2c3a;border-radius:8px;padding:11px 8px;text-align:center;font-weight:600;margin-top:4px;opacity:.7}
+.side .card{position:sticky;top:76px}  /* ниже прилипшей шапки */
+.found{max-height:340px;overflow:auto;background:var(--fill-2);border-radius:10px;margin-top:8px}
+.found div{padding:8px 12px;border-bottom:.5px solid var(--separator);cursor:pointer;display:flex;justify-content:space-between;gap:8px}
+.found div:hover{background:var(--accent-soft)}
+.dirty{color:var(--warn);font-weight:600}
+.cand div{display:flex;justify-content:space-between;gap:8px;padding:5px 0;cursor:pointer}
+.cand div:hover b{text-decoration:underline}
+</style>
+
+{% macro btn(s, cls="") -%}
+<div class="tg-btn {{ cls }}{{ ' blue' if s.highlight }}" data-id="{{ s.id }}"{% if s.share %} data-pct="{{ s.share.pct }}" data-title="{{ s.share.title }}"{% endif %}
+  {%- if cls %} title="Сейчас нет номеров — в боте не показывается"{% endif %}><span>{{ s.name }}</span>
+  {%- if s.share %}<span class="pop" title="{{ s.share.title }}">{{ s.share.pct }}</span>{% endif -%}
+  <span class="x" title="Убрать из популярных">×</span></div>
+{%- endmacro %}
+
+<h1>Популярные сервисы</h1>
+<p class="muted">Так список выглядит в боте. Перетаскивайте кнопки, чтобы менять порядок;
+  × на кнопке — убрать из популярных. Страницы в боте — по {{ page_size }} кнопок.
+  Сервисы, по которым сейчас нет номеров, бот не показывает — они в отдельном блоке ниже
+  и появятся в конце списка, когда номера вернутся (дальше их можно передвинуть).
+  <span class="ok">Зелёный процент</span> — популярность: доля сервиса во всех активациях за {{ pop_days }} дней.</p>
+
+<div class="pop-wrap">
+  <div class="tg">
+    <div class="tg-bubble"><b>Популярные сервисы</b><br><br>Выберите сервис или напишите его название в чат для поиска 🔍</div>
+    <div class="tg-grid" id="grid">
+      {% for s in items if s.visible %}{{ btn(s) }}{% endfor %}
+    </div>
+    <div class="tg-all">📚 Все сервисы</div>
+    <div class="tg-sep" style="color:#8a9aa9;margin-top:14px">Сейчас без номеров — в боте не видны</div>
+    <div class="tg-grid" id="off">
+      {% for s in items if not s.visible %}{{ btn(s, "off") }}{% endfor %}
+    </div>
+    <div id="off-empty" class="muted" style="text-align:center;font-size:12px;color:#8a9aa9">пусто</div>
+  </div>
+
+  <div class="side">
+    <div class="card">
+      <p><b>Сохранение</b> <span id="state" class="muted">изменений нет</span></p>
+      <button id="save" onclick="save()">Сохранить порядок</button>
+      <hr style="border:0;border-top:1px solid var(--border);margin:14px 0">
+      <b>Добавить сервис</b>
+      <input type="text" id="q" placeholder="Название, например Signal" autocomplete="off" style="width:100%;margin-top:6px">
+      <div class="found" id="found"></div>
+      <p class="muted" style="font-size:12px">Новый сервис добавляется в конец списка — дальше перетащите его куда нужно.</p>
+      <hr style="border:0;border-top:1px solid var(--border);margin:14px 0">
+      <b>Следующие кандидаты</b>
+      <p class="muted" style="font-size:12px;margin:4px 0">Не в популярных, но их берут чаще всего. Нажмите, чтобы добавить.</p>
+      <div class="cand" id="cand">
+        {% for s in candidates %}<div data-id="{{ s.id }}"><b></b><span class="ok" title="{{ s.share.title }}">{{ s.share.pct }}</span></div>{% endfor %}
+      </div>
+      <div id="cand-empty" class="muted" style="font-size:12px">Пока нет — появятся, когда накопятся активации.</div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
+<script>
+const PAGE = {{ page_size }};
+const catalogAll = {{ others|tojson }};  // [{id, name, countries, share: {pct, title} | null}]
+const grid = document.getElementById("grid");
+let dirty = false;
+
+function setDirty(v) {
+  dirty = v;
+  const st = document.getElementById("state");
+  st.textContent = v ? "есть несохранённые изменения" : "изменений нет";
+  st.className = v ? "dirty" : "muted";
+}
+window.addEventListener("beforeunload", e => { if (dirty) { e.preventDefault(); e.returnValue = ""; } });
+
+const off = document.getElementById("off");
+
+// разделители страниц: в сетке только то, что бот реально покажет
+function paginate() {
+  grid.querySelectorAll(".tg-sep").forEach(x => x.remove());
+  [...grid.querySelectorAll(".tg-btn")].forEach((b, n) => {
+    if (n % PAGE !== 0) return;
+    const sep = document.createElement("div");
+    sep.className = "tg-sep";
+    sep.textContent = "Страница " + (n / PAGE + 1);
+    grid.insertBefore(sep, b);
+  });
+  document.getElementById("off-empty").style.display = off.children.length ? "none" : "";
+}
+
+for (const el of [grid, off]) {
+  Sortable.create(el, {
+    animation: 150, draggable: ".tg-btn", filter: ".x", preventOnFilter: false,
+    onEnd: () => { paginate(); setDirty(true); },
+  });
+  el.addEventListener("click", e => {
+    if (!e.target.classList.contains("x")) return;
+    const btn = e.target.closest(".tg-btn");
+    const pop = btn.dataset.pct ? {pct: btn.dataset.pct, title: btn.dataset.title} : null;
+    catalogAll.push({id: +btn.dataset.id, name: btn.querySelector("span").textContent,
+                     countries: el === grid ? 1 : 0, share: pop});
+    btn.remove(); paginate(); setDirty(true); search(); candidates();
+  });
+}
+
+function allButtons() { return [...grid.querySelectorAll(".tg-btn"), ...off.querySelectorAll(".tg-btn")]; }
+function inGrid() { return new Set(allButtons().map(b => +b.dataset.id)); }
+
+function search() {
+  const q = document.getElementById("q").value.trim().toLowerCase();
+  const box = document.getElementById("found");
+  box.innerHTML = "";
+  if (!q) return;
+  const used = inGrid();
+  catalogAll.filter(s => !used.has(s.id) && s.name.toLowerCase().includes(q))
+    .sort((a, b) => (b.name.toLowerCase().startsWith(q)) - (a.name.toLowerCase().startsWith(q)) || b.countries - a.countries)
+    .slice(0, 40).forEach(s => {
+      const row = document.createElement("div");
+      row.innerHTML = `<span></span><span class="muted">${s.share ? s.share.pct + " · " : ""}${s.countries ? s.countries + " стран" : "нет номеров"}</span>`;
+      row.firstChild.textContent = s.name;
+      row.onclick = () => add(s);
+      box.appendChild(row);
+    });
+  if (!box.children.length) box.innerHTML = '<div class="muted">Ничего не найдено</div>';
+}
+
+function add(s) {
+  const b = document.createElement("div");
+  b.className = "tg-btn" + (s.countries ? "" : " off");
+  b.dataset.id = s.id;
+  b.innerHTML = '<span></span><span class="x" title="Убрать из популярных">×</span>';
+  b.firstChild.textContent = s.name;
+  if (s.share) {
+    Object.assign(b.dataset, {pct: s.share.pct, title: s.share.title});
+    const p = document.createElement("span");
+    p.className = "pop"; p.title = s.share.title; p.textContent = s.share.pct;
+    b.insertBefore(p, b.lastChild);
+  }
+  (s.countries ? grid : off).appendChild(b); paginate(); setDirty(true); search(); candidates();
+  b.scrollIntoView({block: "center", behavior: "smooth"});
+}
+
+document.getElementById("q").addEventListener("input", search);
+
+// кандидаты: уже добавленные в список прячем, клик — добавить
+const byId = new Map(catalogAll.map(s => [s.id, s]));
+document.querySelectorAll("#cand div").forEach(row => {
+  row.firstChild.textContent = byId.get(+row.dataset.id).name;
+  row.onclick = () => add(byId.get(+row.dataset.id));
+});
+function candidates() {
+  const used = inGrid();
+  let shown = 0;
+  document.querySelectorAll("#cand div").forEach(row => {
+    row.hidden = used.has(+row.dataset.id);
+    shown += !row.hidden;
+  });
+  document.getElementById("cand-empty").hidden = shown > 0;
+}
+
+async function save() {
+  // сервисы без номеров идут после видимых: вернутся номера — встанут в конец, дальше можно передвинуть
+  const ids = allButtons().map(b => +b.dataset.id);
+  const btn = document.getElementById("save"); btn.disabled = true;
+  try {
+    const r = await fetch("{{ A }}/popular", {method: "POST", credentials: "same-origin",
+      headers: {"Content-Type": "application/json"}, body: JSON.stringify({ids})});
+    if (!r.ok) throw new Error(r.status);
+    setDirty(false);
+    document.getElementById("state").textContent = "сохранено";
+    document.getElementById("state").className = "ok";
+  } catch (e) { alert("Не удалось сохранить: " + e); }
+  btn.disabled = false;
+}
+
+paginate();
+candidates();
+</script>
+{% endblock %}

@@ -1,0 +1,10 @@
+{% for u in users %}
+  <tr>
+    <td><a href="{{ A }}/users/{{ u.id }}">{{ u.id }}</a></td>
+    <td>{{ '@' ~ u.username if u.username else '—' }}</td>
+    <td>{{ u.first_name or '' }}</td>
+    <td>{{ u.balance|rub }}</td>
+    <td>{{ u.created_at|msk }}</td>
+    <td>{% if u.is_blocked %}<span class="bad">заблокирован</span>{% endif %}</td>
+  </tr>
+{% endfor %}

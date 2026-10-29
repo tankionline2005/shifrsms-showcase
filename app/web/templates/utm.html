@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% macro pct(part, whole) -%}
+  {%- if whole -%}{{ (part * 100 / whole)|round|int }}%{%- else -%}<span class="muted">—</span>{%- endif -%}
+{%- endmacro %}
+{% macro row(title, r, link=none, muted=false) -%}
+  <tr{% if muted %} class="muted"{% endif %}>
+    <td>{% if link is not none %}<a href="{{ A }}/users?q={{ ('utm:' ~ link)|urlencode }}">{{ title }}</a>{% else %}{{ title }}{% endif %}</td>
+    <td class="num">{{ r.starts if r.starts else '—' }}</td>
+    <td class="num"><b>{{ r.new }}</b></td>
+    <td class="num">{{ r.with_sms }} <span class="muted small">{{ pct(r.with_sms, r.new) }}</span></td>
+    <td class="num">{{ r.payers }} <span class="muted small">{{ pct(r.payers, r.new) }}</span></td>
+    <td class="num">{{ r.paid|rub }}</td>
+    <td class="num">{{ r.sms }}</td>
+    <td class="num">{{ r.revenue|rub }}</td>
+    <td class="num">{{ r.profit|rub }}</td>
+  </tr>
+{%- endmacro %}
+
+{% block content %}
+<style>
+.utm-link{display:grid;gap:10px}
+.utm-link form{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.utm-link input[type=text]{flex:1 1 220px;min-width:0}
+.utm-link .out{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.utm-link code{user-select:all;word-break:break-all;font-size:15px}
+.utm table td.num,.utm table th.num{text-align:right;white-space:nowrap}
+.utm tr.total td{font-weight:700;border-top:1px solid var(--border)}
+.small{font-size:12px}
+</style>
+
+<h1>Статистика UTM-меток</h1>
+
+<div class="card utm-link">
+  <b>Ссылка с меткой</b>
+  <form method="get">
+    <input type="hidden" name="days" value="{{ f.days }}"><input type="hidden" name="group" value="{{ f.group }}">
+    <input type="text" id="label" name="label" value="{{ label }}" placeholder="например, tiktok-oct-video1"
+           spellcheck="false" autocomplete="off" maxlength="{{ max_label + prefix|length }}">
+    <button>Сделать ссылку</button>
+  </form>
+  {% if label_error %}<div class="bad">{{ label_error }}</div>
+  {% elif label and bot %}
+  <div class="out"><code id="link">https://t.me/{{ bot }}?start={{ prefix }}{{ label }}</code>
+    <button type="button" class="secondary" id="copy">Скопировать</button></div>
+  {% endif %}
+  <div class="muted small">Формат: <code>https://t.me/{{ bot or 'имя_бота' }}?start={{ prefix }}метка</code>. Метка — латинские
+    буквы, цифры, «_» и «-», до {{ max_label }} символов, регистр не важен. Части через дефис —
+    <b>источник-кампания-объявление</b>: <code>tiktok-oct-video1</code>, <code>vk-ads-banner2</code>,
+    <code>insta</code>. Тогда в группировке «По источникам» все ссылки одного источника сложатся вместе.</div>
+</div>
+
+<form class="filters" method="get" onchange="this.submit()">
+  <select name="days">{% for v, t in periods %}<option value="{{ v }}" {{ 'selected' if f.days == v }}>{{ t }}</option>{% endfor %}</select>
+  <select name="group">
+    <option value="label" {{ 'selected' if f.group != 'source' }}>По меткам</option>
+    <option value="source" {{ 'selected' if f.group == 'source' }}>По источникам</option>
+  </select>
+</form>
+
+<div class="grid">
+  <div class="card stat"><div class="muted">Переходов по меткам</div><div class="v">{{ s.total.starts }}</div></div>
+  <div class="card stat"><div class="muted">Новых пользователей по меткам</div><div class="v">{{ s.total.new }}</div>
+    {% if s.no_label %}<div class="muted small">без метки: {{ s.no_label.new }}</div>{% endif %}</div>
+  <div class="card stat"><div class="muted">Из них пополнили</div><div class="v">{{ s.total.payers }}</div>
+    <div class="muted small">на {{ s.total.paid|rub }}</div></div>
+  <div class="card stat"><div class="muted">Прибыль с них</div><div class="v">{{ s.total.profit|rub }}</div>
+    <div class="muted small">выручка {{ s.total.revenue|rub }}</div></div>
+</div>
+
+<div class="tablewrap utm"><table>
+  <tr>
+    <th>{{ 'Источник' if f.group == 'source' else 'Метка' }}</th>
+    <th class="num" title="Сколько раз открыли бота по ссылке с меткой — в том числе те, кто уже был в боте">Переходов</th>
+    <th class="num" title="Впервые открыли бота по этой метке за выбранный период">Новых</th>
+    <th class="num" title="Получили хотя бы одну SMS — доля от новых">С SMS</th>
+    <th class="num" title="Пополнили баланс хотя бы раз — доля от новых">Пополнили</th>
+    <th class="num">Пополнения</th>
+    <th class="num" title="Активаций, где пришла SMS">Активаций с SMS</th>
+    <th class="num" title="Сумма цен активаций с SMS">Выручка</th>
+    <th class="num" title="Выручка − закупка (без доли рефералов)">Прибыль</th>
+  </tr>
+  {% for key, r in s.rows %}{{ row(key, r, link=key) }}{% endfor %}
+  {% if s.rows %}
+  <tr class="total"><td>Итого по меткам</td>
+    <td class="num">{{ s.total.starts }}</td><td class="num">{{ s.total.new }}</td>
+    <td class="num">{{ s.total.with_sms }} <span class="muted small">{{ pct(s.total.with_sms, s.total.new) }}</span></td>
+    <td class="num">{{ s.total.payers }} <span class="muted small">{{ pct(s.total.payers, s.total.new) }}</span></td>
+    <td class="num">{{ s.total.paid|rub }}</td><td class="num">{{ s.total.sms }}</td>
+    <td class="num">{{ s.total.revenue|rub }}</td><td class="num">{{ s.total.profit|rub }}</td></tr>
+  {% else %}
+  <tr><td colspan="9" class="muted">За этот период по ссылкам с метками никто не приходил.</td></tr>
+  {% endif %}
+  {% if s.no_label %}{{ row('Без метки', s.no_label, link='', muted=true) }}{% endif %}
+</table></div>
+<p class="muted small" style="margin-top:10px">Люди — те, кто впервые открыл бота за выбранный период; их пополнения и
+  активации — за всё время. Человек закрепляется за первой меткой навсегда. «Без метки» — пришли без ссылки с меткой
+  (из поиска, по реферальной кнопке и т. п.). Нажмите на метку — откроется список этих пользователей.</p>
+
+<script>
+(() => {
+  const btn = document.getElementById("copy"), link = document.getElementById("link");
+  if (!btn) return;
+  btn.addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(link.textContent); btn.textContent = "Скопировано"; }
+    catch (e) { const r = document.createRange(); r.selectNodeContents(link);
+      const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); }
+    setTimeout(() => { btn.textContent = "Скопировать"; }, 1500);
+  });
+})();
+</script>
+{% endblock %}

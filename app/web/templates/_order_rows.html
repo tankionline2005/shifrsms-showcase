@@ -1,0 +1,14 @@
+{% for o in orders %}
+  <tr>
+    <td>{{ o.id }}</td>
+    <td>{{ o.created_at|msk }}</td>
+    <td><a href="{{ A }}/users/{{ o.user_id }}">{{ o.user_id }}</a></td>
+    <td>{{ o.service.name }}<br><span class="muted">{{ o.country.flag }} {{ o.country.name }}</span>{% if o.auto %} <span class="badge" title="Куплено в режиме «Авто»: страну выбрал бот">авто</span>{% endif %}</td>
+    <td>+{{ o.phone }}</td>
+    <td>{{ o.provider }}{% if o.supplier %} · <b>{{ o.supplier }}</b>{% endif %}<br><span class="muted" style="font-size:12px">{{ o.provider_order_id }}</span></td>
+    <td><span class="badge {{ o.status }}">{{ o.status }}</span></td>
+    <td>{{ o.price|rub }}</td>
+    <td>${{ '%.4f' % o.cost_usd }}<br><span class="muted">{{ (o.cost_usd * o.usd_rate)|rub }}</span></td>
+    <td style="font-size:12px;max-width:260px">{% for m in o.messages %}<div>{% if m.code %}<b>{{ m.code }}</b> — {% endif %}{{ m.text[:120] }}</div>{% endfor %}</td>
+  </tr>
+{% endfor %}

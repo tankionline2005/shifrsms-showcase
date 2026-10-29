@@ -1,0 +1,10 @@
+<div class="tablewrap">
+<table>
+  <thead><tr><th>Счёт</th><th>Создан ({{ tz_label() }})</th><th>Пользователь</th><th>Способ</th><th>Сумма</th><th>Статус</th><th>Оплачен ({{ tz_label() }})</th><th>Транзакция</th></tr></thead>
+  <tbody data-lazy data-step="{{ step }}" data-count="{{ rows|length }}">
+  {% include "_payment_rows.html" %}
+  {% if not rows %}<tr><td colspan="8" class="muted">Платежей нет</td></tr>{% endif %}
+  </tbody>
+</table>
+</div>
+{% include "_lazy.html" %}

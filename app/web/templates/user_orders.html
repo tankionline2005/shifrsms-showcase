@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block content %}
+<p><a href="{{ A }}/users/{{ user.id }}">← Пользователь {{ user.id }}{% if user.username %} (@{{ user.username }}){% endif %}</a></p>
+<h1>Заказы пользователя</h1>
+{% include "_orders_table.html" %}
+{% endblock %}

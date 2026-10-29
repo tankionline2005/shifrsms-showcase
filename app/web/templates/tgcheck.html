@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+.tg-add{display:grid;gap:10px;max-width:520px}
+.tg-add form{display:flex;gap:8px;flex-wrap:wrap}
+.tg-add input[type=text],.tg-add input[type=password]{flex:1 1 220px;min-width:0}
+.tg td.num,.tg th.num{text-align:right;white-space:nowrap}
+.tg .acts{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.small{font-size:12px}
+</style>
+
+<h1>Проверка Telegram</h1>
+{% if error %}<div class="notice bad">{{ error }}</div>{% endif %}
+{% if saved %}<div class="notice ok">{{ saved }}</div>{% endif %}
+
+<div class="card muted" style="font-size:13px">
+  Перед выдачей номера для Telegram бот спрашивает Telegram, нет ли на нём уже аккаунта — так же, как это видно при
+  нажатии на номер. Занятый номер (в том числе «Удалённый аккаунт») пользователь не получает: бот берёт другой, а этот
+  отменяет у площадки. Спрашивают аккаунты ниже — по очереди, дольше всех не проверявший первым.
+  Если рабочих аккаунтов нет, номера выдаются без проверки, а в Telegram приходит уведомление.
+  Ограничение Telegram: если владелец номера скрыл «Кто может найти меня по номеру», номер выглядит свободным.
+  <br>Проверка {% if on %}<b class="ok">включена</b>{% else %}<b class="bad">выключена</b>{% endif %} ·
+  проверок в сутки на аккаунт: {{ limit if limit else 'без лимита' }} · пауза: {{ (pause ~ ' с') if pause else 'нет' }} —
+  <a href="{{ A }}/settings">в «Настройках»</a>.
+</div>
+
+{% if not enabled %}
+<div class="notice bad">На сервере не заданы TG_API_ID и TG_API_HASH: создайте приложение на my.telegram.org →
+  «API development tools» и впишите оба значения в .env на сервере. До этого номера не проверяются.</div>
+{% else %}
+<div class="card tg-add">
+  {% if pending and pending.step == 'password' %}
+    <b>Облачный пароль аккаунта +{{ pending.phone }}</b>
+    <form method="post" action="{{ A }}/tgcheck/password">
+      <input type="hidden" name="login" value="{{ login }}">
+      <input type="password" name="password" placeholder="Облачный пароль" autocomplete="off" required autofocus>
+      <button>Войти</button>
+    </form>
+  {% elif pending %}
+    <b>Код для +{{ pending.phone }}</b>
+    <div class="muted small">Telegram прислал код внутрь Telegram — откройте этот аккаунт (exteraGram) и введите код
+      из сообщения от Telegram. Никому, кроме этой панели, код не отправляйте.</div>
+    <form method="post" action="{{ A }}/tgcheck/code">
+      <input type="hidden" name="login" value="{{ login }}">
+      <input type="text" name="code" placeholder="Код из Telegram" inputmode="numeric" autocomplete="one-time-code"
+             required autofocus>
+      <button>Подтвердить</button>
+    </form>
+    <a class="small" href="{{ A }}/tgcheck">Отмена</a>
+  {% else %}
+    <b>Добавить аккаунт</b>
+    <form method="post" action="{{ A }}/tgcheck/add">
+      <input type="text" name="phone" placeholder="Номер аккаунта, например +79991234567" inputmode="tel" required
+             autocomplete="off">
+      <button>Получить код</button>
+    </form>
+    <div class="muted small">Сервер войдёт в аккаунт ещё одним устройством («Shifr SMS» в списке устройств). Аккаунт
+      ничего не пишет и не читает — только проверяет номера.</div>
+  {% endif %}
+</div>
+{% endif %}
+
+<h2>Аккаунты</h2>
+<div class="tablewrap tg"><table>
+  <tr><th>Аккаунт</th><th>Состояние</th><th class="num">Проверок сегодня</th><th class="num">Всего</th>
+    <th class="num">Занятых нашли</th><th>Последняя проверка ({{ tz_label() }})</th><th></th></tr>
+  {% for r in rows %}
+  <tr>
+    <td>+{{ r.phone }}{% if r.username %}<div class="muted small">@{{ r.username }}</div>{% elif r.name %}<div class="muted small">{{ r.name }}</div>{% endif %}</td>
+    <td>
+      {% if r.status == 'dead' %}<span class="bad">отлетел</span>
+      {% elif r.status == 'paused' %}<span class="muted">на паузе</span>
+      {% elif r.rest_until and r.rest_until > now %}<span class="warn">отдыхает до {{ r.rest_until|msk('%d.%m %H:%M') }}</span>
+      {% elif limit and r.checks_day == today and (r.checks_today or 0) >= limit %}<span class="warn">лимит на сегодня</span>
+      {% else %}<span class="ok">работает</span>{% endif %}
+      {% if r.last_error %}<div class="muted small">{{ r.last_error }}</div>{% endif %}
+    </td>
+    <td class="num">{{ r.checks_today if r.checks_day == today else 0 }}</td>
+    <td class="num">{{ r.checks_total or 0 }}</td>
+    <td class="num">{{ r.busy_total or 0 }}</td>
+    <td>{{ r.last_check_at|msk if r.last_check_at else '—' }}</td>
+    <td><div class="acts">
+      {% if r.status in ('active', 'paused') %}
+      <form method="post" action="{{ A }}/tgcheck/{{ r.id }}/pause">
+        <input type="hidden" name="paused" value="{{ '0' if r.status == 'paused' else '1' }}">
+        <button class="secondary">{{ 'Включить' if r.status == 'paused' else 'Пауза' }}</button></form>
+      {% endif %}
+      <form method="post" action="{{ A }}/tgcheck/{{ r.id }}/delete"
+            onsubmit="return confirm('Удалить аккаунт +{{ r.phone }}? Сервер выйдет из него — чтобы вернуть, нужно будет войти заново.')">
+        <button class="danger">Удалить</button></form>
+    </div></td>
+  </tr>
+  {% else %}
+  <tr><td colspan="7" class="muted">Аккаунтов пока нет — номера Telegram выдаются без проверки.</td></tr>
+  {% endfor %}
+</table></div>
+<p class="muted small" style="margin-top:8px">Отлетевший аккаунт (вышли из сессии, удалён, заблокирован) удалите и добавьте
+  заново. Об отлетевших аккаунтах и о том, что проверять некем, бот пишет тем, кто указан в «Настройках» →
+  «Кому присылать системные уведомления».</p>
+{% endblock %}

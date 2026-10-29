@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}{{ tr('balance_title') }} — ShifrSMS{% endblock %}
+{% block style %}
+.bal-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:16px;align-items:start}
+.big{font-size:40px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.methods{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.methods label{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:var(--r-s);border:1px solid var(--line-2);cursor:pointer;font-weight:500}
+.methods input{accent-color:var(--accent)}
+.methods label:has(input:checked){border-color:var(--accent);background:var(--accent-soft)}
+.amounts{display:flex;flex-wrap:wrap;gap:8px}
+.amounts button{height:36px;padding:0 14px;border-radius:999px;border:1px solid var(--line-2);background:var(--raised);color:var(--text);cursor:pointer;font:600 14px/1 var(--f)}
+.amounts button:hover{border-color:var(--accent-line)}
+.pays td,.pays th{padding:10px 12px;text-align:left;border-top:1px solid var(--line);font-size:14px}
+.pays th{color:var(--dim);font-weight:500;border-top:0}
+.pays{width:100%;border-collapse:collapse}
+.pays .num{text-align:right;font-variant-numeric:tabular-nums}
+@media (max-width:820px){.bal-grid{grid-template-columns:1fr}}
+@media (max-width:520px){.methods{grid-template-columns:1fr}.pays .hide-m{display:none}}
+{% endblock %}
+{% block content %}
+<h1 style="margin-bottom:18px">{{ tr('balance_title') }}</h1>
+{% if paid %}<div class="notice info" style="margin-bottom:16px">{{ tr('pay_returned') }}</div>{% endif %}
+<div class="bal-grid">
+  <div class="card stack">
+    <div><div class="muted small">{{ tr('your_balance') }}</div><div class="big">{{ user.balance|rub }}</div></div>
+    <p class="small dim">{{ tr('topup_stars') }} <a href="https://t.me/ShifrSMSbot" target="_blank" rel="noopener">@ShifrSMSbot</a></p>
+  </div>
+  <div class="card">
+    <h2 style="margin-bottom:14px">{{ tr('topup') }}</h2>
+    {% if methods %}
+    <form method="post" action="{{ P }}/balance/topup" class="stack once" id="topup">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <div class="methods">
+        {% for m, lim, presets in methods %}
+        <label><input type="radio" name="method" value="{{ m }}" data-min="{{ lim[0] }}" data-max="{{ lim[1] }}"
+          data-presets="{{ presets|join(',') }}" {{ 'checked' if loop.first }}>{{ tr('m_sbp') if m == 2 else tr('m_crypto') }}</label>
+        {% endfor %}
+      </div>
+      <label class="f">{{ tr('topup_amount') }}
+        <input type="number" name="amount" id="amount" min="1" step="1" required value="{{ need if need else '' }}" inputmode="numeric"></label>
+      <div class="amounts" id="presets"></div>
+      <div class="small dim" id="limits"></div>
+      <button class="btn block" type="submit">{{ tr('topup_go') }}</button>
+    </form>
+    {% else %}
+    <p class="muted">{{ tr('topup_off') }}</p>
+    {% endif %}
+  </div>
+</div>
+
+<h2 style="margin:28px 0 12px">{{ tr('payments_title') }}</h2>
+{% if pays %}
+<div class="card" style="padding:4px 8px"><table class="pays">
+  <tr><th>№</th><th class="hide-m">{{ tr('topup_method') }}</th><th>{{ tr('status') }}</th><th class="num">{{ tr('price') }}</th></tr>
+  {% for p in pays %}
+  <tr><td><span class="mono">{{ p.id }}</span><br><span class="small dim"><time data-utc="{{ p.created_at.isoformat() }}"></time></span></td>
+    <td class="hide-m">{{ tr('m_sbp') if p.method == 2 else (tr('m_crypto') if p.method == 13 else 'Telegram Stars' if p.method == stars else '—') }}</td>
+    <td>{% if p.status == 'pending' and p.url %}<a href="{{ p.url }}" target="_blank" rel="noopener">{{ tr('pay_open') }}</a>
+        {% else %}<span class="badge {{ 'ok' if p.status == 'confirmed' else 'wait' if p.status == 'pending' else 'off' }}">{{ tr('pay_' ~ p.status) }}</span>{% endif %}</td>
+    <td class="num">{{ p.amount|rub }}</td></tr>
+  {% endfor %}
+</table></div>
+{% else %}
+<p class="muted">{{ tr('payments_empty') }}</p>
+{% endif %}
+{% endblock %}
+{% block script %}
+<script>
+(function(){
+  var f=document.getElementById('topup');if(!f)return;
+  var amount=document.getElementById('amount'),box=document.getElementById('presets'),lim=document.getElementById('limits');
+  function upd(){
+    var m=f.querySelector('input[name=method]:checked');if(!m)return;
+    amount.min=m.dataset.min;amount.max=m.dataset.max;
+    lim.textContent={{ tr("topup_limits", min="MIN", max="MAX")|tojson }}.replace('MIN',m.dataset.min).replace('MAX',m.dataset.max);
+    box.innerHTML='';
+    (m.dataset.presets||'').split(',').filter(Boolean).forEach(function(v){
+      var b=document.createElement('button');b.type='button';b.textContent=v+' ₽';
+      b.onclick=function(){amount.value=v};box.appendChild(b);
+    });
+  }
+  f.addEventListener('change',upd);upd();
+})();
+</script>
+{% endblock %}

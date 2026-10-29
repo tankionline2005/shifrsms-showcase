@@ -1,0 +1,10 @@
+[Unit]
+Description=Shifr SMS: резервная копия в Google Drive
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/shifr-backup
+TimeoutStartSec=30min
+Nice=10

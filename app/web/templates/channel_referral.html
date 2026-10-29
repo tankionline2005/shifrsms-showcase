@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% import "_paged.html" as pg %}
+{% block content %}
+<style>
+.num{text-align:right;font-variant-numeric:tabular-nums}
+</style>
+
+<p><a href="{{ A }}/channels">← {{ 'Ваш канал' if is_ref else 'Каналы' }}</a></p>
+<h1>{{ 'Баланс' if is_ref else 'Баланс реферала' }} · {{ channel.title }}</h1>
+{% if error %}<div class="notice bad">{{ error }}</div>{% endif %}
+{% if saved %}<div class="notice ok">{{ saved }}</div>{% endif %}
+
+<div class="grid">
+  <div class="card stat"><div class="muted">Баланс</div><div class="v">{{ info.balance|usd }}</div>
+    {% if is_ref %}<a class="btn" style="margin-top:8px" href="{{ A }}/withdraw">Вывести</a>{% endif %}</div>
+  <div class="card stat"><div class="muted">Заработано всего</div><div class="v">{{ info.earned|usd }}</div></div>
+  <div class="card stat"><div class="muted">Приведено людей</div><div class="v">{{ info.users }}</div></div>
+  {% set rev = ref.revenue_percent if ref.revenue_percent is not none else 15 %}
+  <div class="card stat"><div class="muted">Доля от выручки</div><div class="v">{{ '%g' % rev }}%</div></div>
+  {% if not is_ref %}<div class="card stat"><div class="muted">Максимум от прибыли</div><div class="v">{{ '%g' % ref.percent }}%</div></div>{% endif %}
+</div>
+{% if is_ref %}
+<p class="muted" style="font-size:12px">Ваша доля: {{ '%g' % rev }}% от стоимости каждой успешной активации приглашённых вами людей.
+  Сумма переводится в доллары по курсу ЦБ на момент начисления.</p>
+{% else %}
+<p class="muted" style="font-size:12px">Начисление — {{ '%g' % rev }}% цены активации, но не больше {{ '%g' % ref.percent }}% нашей
+  прибыли (цена минус закупка) с каждой активации, по которой пришла SMS, у людей, впервые открывших бота по кнопке под
+  постами канала. Сумма переводится в доллары по курсу ЦБ на момент начисления. Реферал в кабинете видит только долю
+  от выручки.</p>
+{% endif %}
+
+<h2>История</h2>
+{% call pg.box(A ~ "/channels/" ~ channel.id ~ "/referral/history", "Поиск: операция, номер активации, сумма, адрес") %}{% include "_tbl_ref_history.html" %}{% endcall %}
+{{ pg.assets() }}
+
+{% endblock %}

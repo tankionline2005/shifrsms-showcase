@@ -1,0 +1,13 @@
+{# «Сверка» → движения кошелька в сети #}
+{% import "_paged.html" as pg %}
+<div class="tablewrap"><table>
+  <tr><th>Дата ({{ tz_label() }})</th><th></th><th class="num">USDT</th><th>Откуда / куда</th></tr>
+  {% for x in t.rows %}
+  <tr><td>{{ x.at|msk }}</td><td>{{ 'Поступление' if x.incoming else 'Списание' }}</td>
+    <td class="num {{ 'ok' if x.incoming else '' }}">{{ '+' if x.incoming else '−' }}{{ x.amount_usd|usd }}</td>
+    <td class="addr"><a href="{{ tx_url(x.txid) }}" target="_blank" rel="noopener">{{ x.counterparty[:6] }}…{{ x.counterparty[-4:] }}</a></td></tr>
+  {% else %}
+  <tr><td colspan="4" class="muted">{{ 'Ничего не найдено' if t.q else 'Пока пусто — здесь появятся поступления (например, автовывод из Platega) и переводы' }}</td></tr>
+  {% endfor %}
+</table></div>
+{{ pg.pager(t) }}

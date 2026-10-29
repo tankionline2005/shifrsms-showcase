@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Пользователи</h1>
+<div class="filters">
+  <form class="inline" method="get">
+    <input type="text" name="q" value="{{ q }}" placeholder="ID, username или имя">
+    <button>Найти</button>
+  </form>
+</div>
+<div class="tablewrap">
+<table>
+  <thead><tr><th>ID</th><th>Username</th><th>Имя</th><th>Баланс</th><th>Регистрация ({{ tz_label() }})</th><th></th></tr></thead>
+  <tbody data-lazy data-step="{{ step }}" data-count="{{ users|length }}">
+  {% include "_user_rows.html" %}
+  {% if not users %}<tr><td colspan="6" class="muted">{{ 'Никого не нашли' if q else 'Пользователей пока нет' }}</td></tr>{% endif %}
+  </tbody>
+</table>
+</div>
+{% include "_lazy.html" %}
+{% endblock %}

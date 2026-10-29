@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}{{ tr('login_title') if mode == 'login' else tr('register_title') if mode == 'register' else tr('reset_title') }} — ShifrSMS{% endblock %}
+{% block style %}
+.auth{max-width:440px;margin:8px auto 0;display:grid;gap:14px}
+.cap{position:relative;border-radius:var(--r-s);overflow:hidden;border:1px solid var(--line-2);background:#555;aspect-ratio:380/120}
+.cap img{display:block;width:100%;height:100%;pointer-events:none;-webkit-user-drag:none;user-select:none;-webkit-touch-callout:none}
+.cap .chip{position:absolute;right:8px;top:8px;width:36px;height:36px;padding:0;justify-content:center;background:rgba(0,0,0,.55)}
+.cap .chip svg{width:18px;height:18px}
+.tgbox{display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:var(--r);border:1px solid var(--line-2);
+  background:linear-gradient(135deg,rgba(42,165,228,.12),rgba(42,165,228,.03))}
+.tgbox svg{width:30px;height:30px;color:#2aa5e4;flex:none}
+.btn.tg{background:#2aa5e4}.btn.tg:hover{background:#3db3ee}
+.sep{display:flex;align-items:center;gap:12px;color:var(--dim);font-size:13px}
+.sep::before,.sep::after{content:"";flex:1;border-top:1px solid var(--line)}
+.meter{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}
+.meter i{height:4px;border-radius:2px;background:var(--line-2)}
+.meter[data-s="1"] i:nth-child(-n+1){background:var(--bad)}
+.meter[data-s="2"] i:nth-child(-n+2){background:var(--warn)}
+.meter[data-s="3"] i:nth-child(-n+3){background:var(--ok)}
+.meter[data-s="4"] i{background:var(--ok)}
+.pw{position:relative}.pw input{padding-right:46px}
+.pw button{position:absolute;right:6px;top:50%;transform:translateY(-50%);border:0;background:none;color:var(--dim);cursor:pointer;padding:8px}
+{% endblock %}
+{% block content %}
+<div class="auth">
+  {% if mode != 'reset' %}
+  <div class="tgbox"><svg><use href="#i-tg"/></svg><span class="grow small muted">{{ tr('tg_login_hint') }}</span>
+    <button class="btn tg small" type="button" data-tg="login">{{ tr('tg_login') }}</button></div>
+  <div class="notice info hide" id="tg-wait"></div>
+  <div class="sep">{{ tr('or') }}</div>
+  {% endif %}
+
+  <div class="card stack">
+    {% if mode == 'login' %}
+    <div><h1>{{ tr('login_title') }}</h1><p class="muted small" style="margin-top:4px">{{ tr('login_sub') }}</p></div>
+    {% if error %}<div class="notice bad">{{ error }}</div>{% endif %}
+    <form method="post" action="{{ P }}/login" class="stack">
+      <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="next" value="{{ next }}">
+      <label class="f">{{ tr('login') }}<input type="text" name="login" value="{{ login_value or '' }}" autocomplete="username" autocapitalize="off" required></label>
+      <label class="f"><span class="row" style="justify-content:space-between">{{ tr('password') }}<a href="{{ P }}/reset">{{ tr('forgot') }}</a></span>
+        <span class="pw"><input type="password" name="password" autocomplete="current-password" required><button type="button" data-eye aria-label="show"><svg width="18" height="18"><use href="#i-eye"/></svg></button></span></label>
+      <button class="btn block" type="submit">{{ tr('sign_in') }}</button>
+    </form>
+    <a class="btn ghost block" href="{{ P }}/register">{{ tr('no_account') }}</a>
+
+    {% elif mode == 'register' %}
+    <div><h1>{{ tr('register_title') }}</h1><p class="muted small" style="margin-top:4px">{{ tr('register_sub') }}</p></div>
+    {% if error %}<div class="notice bad">{{ error }}</div>{% endif %}
+    <form method="post" action="{{ P }}/register" class="stack" id="reg">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <label class="f">{{ tr('login') }}<input type="text" name="login" value="{{ login_value or '' }}" autocomplete="username" autocapitalize="off"
+        pattern="[A-Za-z0-9][A-Za-z0-9_.\-]{2,31}" title="{{ tr('err_login_format') }}" required></label>
+      <label class="f">{{ tr('password') }}<span class="pw"><input type="password" name="password" id="pw1" minlength="8" autocomplete="new-password" required><button type="button" data-eye aria-label="show"><svg width="18" height="18"><use href="#i-eye"/></svg></button></span></label>
+      <div class="meter" id="meter" data-s="0"><i></i><i></i><i></i><i></i></div>
+      <div class="small dim" id="meter-t"></div>
+      <label class="f">{{ tr('password2') }}<span class="pw"><input type="password" name="password2" minlength="8" autocomplete="new-password" required><button type="button" data-eye aria-label="show"><svg width="18" height="18"><use href="#i-eye"/></svg></button></span></label>
+      <div class="f"><span>{{ tr('captcha') }}</span>
+        <div class="cap" oncontextmenu="return false" ondragstart="return false"><img id="cap-img" src="{{ P }}/captcha?r={{ range(1, 1000000000)|random }}" width="380" height="120" alt="{{ tr('captcha') }}" draggable="false">
+          <button type="button" class="chip" id="cap-new" title="{{ tr('captcha_new') }}" aria-label="{{ tr('captcha_new') }}"><svg><use href="#i-refresh"/></svg></button></div>
+        <input type="text" name="captcha" maxlength="8" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" required
+          style="text-transform:uppercase;letter-spacing:.12em"></div>
+      <label class="check"><input type="checkbox" name="agree" value="1" required>
+        <span>{{ tr('agree', terms='<a href="' ~ terms_url ~ '" target="_blank" rel="noopener">' ~ tr('terms') ~ '</a>', privacy='<a href="' ~ privacy_url ~ '" target="_blank" rel="noopener">' ~ tr('privacy') ~ '</a>')|safe }}</span></label>
+      <button class="btn block" type="submit">{{ tr('register_btn') }}</button>
+    </form>
+    <a class="btn ghost block" href="{{ P }}/login">{{ tr('have_account') }}</a>
+
+    {% else %}
+    <div><h1>{{ tr('reset_title') }}</h1></div>
+    {% if error %}<div class="notice bad">{{ error }}</div>{% endif %}
+    {% if allowed %}
+    <form method="post" action="{{ P }}/reset" class="stack">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <p class="muted small">{{ tr('reset_new') }}</p>
+      <label class="f">{{ tr('new_password') }}<span class="pw"><input type="password" name="password" minlength="8" autocomplete="new-password" required><button type="button" data-eye aria-label="show"><svg width="18" height="18"><use href="#i-eye"/></svg></button></span></label>
+      <label class="f">{{ tr('password2') }}<span class="pw"><input type="password" name="password2" minlength="8" autocomplete="new-password" required><button type="button" data-eye aria-label="show"><svg width="18" height="18"><use href="#i-eye"/></svg></button></span></label>
+      <button class="btn block" type="submit">{{ tr('save') }}</button>
+    </form>
+    {% else %}
+    <p class="muted small">{{ tr('reset_sub') }}</p>
+    <label class="f">{{ tr('login') }}<input type="text" id="reset-login" autocapitalize="off" autocomplete="username"></label>
+    <button class="btn tg block" type="button" data-tg="reset">{{ tr('reset_go') }}</button>
+    <div class="notice info hide" id="tg-wait"></div>
+    <p class="small dim">{{ tr('register_warn') }}</p>
+    {% endif %}
+    <a class="btn ghost block" href="{{ P }}/login">{{ tr('sign_in') }}</a>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+{% block script %}
+{% include "_tg_auth.html" %}
+<script>
+/* капча: «другая картинка» — новая капча (прежняя перестаёт действовать) */
+(function(){
+  var img=document.getElementById('cap-img'),btn=document.getElementById('cap-new');if(!img)return;
+  var input=img.closest('.f').querySelector('input');
+  btn.addEventListener('click',function(){img.src='{{ P }}/captcha?r='+Math.random().toString(36).slice(2);input.value='';input.focus()});
+  window.addEventListener('pageshow',function(e){if(e.persisted)btn.click()});  /* «назад» в браузере — старая капча уже не годится */
+})();
+document.addEventListener('click',function(e){
+  var b=e.target.closest('[data-eye]');if(!b)return;
+  var i=b.parentElement.querySelector('input');i.type=i.type==='password'?'text':'password';
+});
+(function(){
+  var p=document.getElementById('pw1'),m=document.getElementById('meter'),t=document.getElementById('meter-t');
+  if(!p)return;
+  var names=['',{{ tr("pw_weak")|tojson }},{{ tr("pw_ok")|tojson }},{{ tr("pw_strong")|tojson }},{{ tr("pw_strong")|tojson }}];
+  p.addEventListener('input',function(){
+    var v=p.value,s=0;
+    if(v.length>=8)s++;if(v.length>=12)s++;if(/[A-Z]/.test(v)&&/[a-z]/.test(v))s++;if(/\d/.test(v)&&/[^A-Za-z0-9]/.test(v))s++;
+    if(v.length<8)s=v?1:0;m.dataset.s=s;t.textContent=names[s];
+  });
+})();
+</script>
+{% endblock %}

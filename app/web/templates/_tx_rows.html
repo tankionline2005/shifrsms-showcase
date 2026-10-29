@@ -1,0 +1,3 @@
+{% for t in txs %}
+  <tr><td>{{ t.created_at|msk }}</td><td class="{{ 'ok' if t.amount > 0 else 'bad' }}">{{ t.amount|rub }}</td><td>{{ t.kind|tx_kind }}</td><td>{{ t.order_id or '' }}</td><td>{{ t.comment or '' }}</td></tr>
+{% endfor %}

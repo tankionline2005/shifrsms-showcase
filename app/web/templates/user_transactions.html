@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+<p><a href="{{ A }}/users/{{ user.id }}">← Пользователь {{ user.id }}{% if user.username %} (@{{ user.username }}){% endif %}</a></p>
+<h1>Операции по балансу</h1>
+<div class="tablewrap">
+<table>
+  <thead><tr><th>Дата ({{ tz_label() }})</th><th>Сумма</th><th>Тип</th><th>Заказ</th><th>Комментарий</th></tr></thead>
+  <tbody data-lazy data-step="{{ step }}" data-count="{{ txs|length }}">
+  {% include "_tx_rows.html" %}
+  {% if not txs %}<tr><td colspan="5" class="muted">Нет операций</td></tr>{% endif %}
+  </tbody>
+</table>
+</div>
+{% include "_lazy.html" %}
+{% endblock %}

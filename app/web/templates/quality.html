@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% macro pct(rate) -%}
+  {%- if rate is none -%}<span class="muted">—</span>
+  {%- else -%}{% set p = (rate * 100)|round|int %}
+    <b class="{{ 'ok' if p >= 80 else 'warn' if p >= 50 else 'bad' }}">{{ p }}%</b>
+  {%- endif -%}
+{%- endmacro %}
+
+{% block content %}
+<h1>Качество</h1>
+
+<form class="filters" method="get" onchange="this.submit()">
+  <select name="days">{% for v, t in periods %}<option value="{{ v }}" {{ 'selected' if f.days == v }}>{{ t }}</option>{% endfor %}</select>
+  <select name="group">{% for k, g in groups.items() %}<option value="{{ k }}" {{ 'selected' if f.group == k }}>По: {{ g[0] }}</option>{% endfor %}</select>
+  <select name="provider"><option value="">Все площадки</option>
+    {% for p, title in providers %}<option value="{{ p }}" {{ 'selected' if f.provider == p }}>{{ title }}</option>{% endfor %}</select>
+  <select name="service"><option value="0">Все сервисы</option>
+    {% for i, t in services %}<option value="{{ i }}" {{ 'selected' if f.service == i }}>{{ t }}</option>{% endfor %}</select>
+  <select name="country"><option value="0">Все страны</option>
+    {% for i, t in countries %}<option value="{{ i }}" {{ 'selected' if f.country == i }}>{{ t }}</option>{% endfor %}</select>
+  <select name="sort">{% for k, t in sorts %}<option value="{{ k }}" {{ 'selected' if f.sort == k }}>{{ t }}</option>{% endfor %}</select>
+  <label class="muted">от <input type="number" name="min_n" value="{{ f.min_n }}" min="0" style="width:60px"> активаций</label>
+</form>
+
+<div class="grid">
+  <div class="card stat"><div class="muted">Надёжность</div><div class="v">{{ pct(total_rel) }}</div></div>
+  <div class="card stat"><div class="muted">Активаций</div><div class="v">{{ stat.activations }}</div>
+    <div class="muted" style="font-size:12px">ждут SMS: {{ stat.active }}</div></div>
+  <div class="card stat"><div class="muted">SMS пришла</div><div class="v">{{ pct(stat.rate) }}</div>
+    <div class="muted" style="font-size:12px">{{ stat.ok }} из {{ stat.counted }}</div></div>
+  <div class="card stat"><div class="muted">Поставщик выдал номер</div><div class="v">{{ pct(stat.buy_rate) }}</div>
+    <div class="muted" style="font-size:12px">фантомов: {{ stat.phantom }}, ошибок: {{ stat.errors }} из {{ stat.attempts }} попыток</div></div>
+  <div class="card stat"><div class="muted">SMS приходит за (медиана)</div><div class="v">{{ q.human_seconds(stat.median_sms_seconds) }}</div></div>
+</div>
+
+<div class="tablewrap"><table>
+  <tr>
+    {% for h in heads %}<th>{{ h }}</th>{% endfor %}
+    <th title="Шанс, что на выданный номер придёт код: доля пришедших SMS × поправка на скорость, со сглаживанием малых выборок">Надёжность</th>
+    <th title="Все выданные номера">Активаций</th>
+    <th title="Пришла хотя бы одна SMS">С SMS</th>
+    <th title="Срок истёк без SMS — провал">Без SMS</th>
+    <th title="Замена номера или отмена после {{ quick }} мин ожидания без SMS — провал">Отмена</th>
+    <th title="Отмена раньше {{ quick }} мин — «передумал», не в счёт">Передумал</th>
+    <th>SMS пришла</th>
+    <th title="Сколько раз бот пытался купить номер у поставщика">Попыток</th>
+    <th title="Выдал номер / попыток. Фантом — номер был в прайсе, но поставщик ответил «нет номеров»; ошибки площадки тоже снижают выдачу">Выдача</th>
+    <th>Фантомы</th>
+    <th>SMS за (медиана)</th>
+  </tr>
+  {% for r in rows %}{% set s = r.stat %}
+  <tr>
+    {% for l in r.labels %}<td>{{ l }}</td>{% endfor %}
+    <td>{{ pct(r.rel) }}{% if s.counted < min_orders %} <span class="muted" title="Меньше {{ min_orders }} активаций — оценка приблизительная">?</span>{% endif %}</td>
+    <td>{{ s.activations }}</td>
+    <td class="ok">{{ s.ok }}</td>
+    <td class="bad">{{ s.no_sms }}</td>
+    <td class="bad">{{ s.failed }}</td>
+    <td class="muted">{{ s.mind }}</td>
+    <td>{{ pct(s.rate) }}</td>
+    <td>{{ s.attempts }}</td>
+    <td>{{ pct(s.buy_rate) }}</td>
+    <td class="{{ 'bad' if s.phantom }}">{{ s.phantom }}</td>
+    <td>{{ q.human_seconds(s.median_sms_seconds) }}</td>
+  </tr>
+  {% else %}
+  <tr><td colspan="{{ heads|length + 11 }}" class="muted">За этот период данных нет</td></tr>
+  {% endfor %}
+</table></div>
+{% if total > 500 %}<p class="muted">Показаны 500 строк из {{ total }}.</p>{% endif %}
+
+<div class="card muted" style="margin-top:16px;font-size:13px">
+  <b>Надёжность</b> — шанс, что на выданный номер придёт код: доля пришедших SMS × поправка на скорость
+  (SMS до 1 мин — без штрафа, к 5 мин медианы — минус 10%). Малые выборки сглаживаются к среднему: к данным
+  добавляются 5 «виртуальных» активаций со средним уровнем — здесь по всему показанному, в боте — на ступень выше
+  (поставщик в стране → страна → сервис). Поэтому «нет данных» — это «как в среднем», а не 50%.
+  <b>Выдача и фантомы</b> в надёжность не входят — это для сведения: с пустыми прайсами справляется карантин.
+  Знак <b>?</b> — меньше {{ min_orders }} активаций, оценка приблизительная.<br>
+  <b>SMS пришла</b> = «С SMS» / («С SMS» + «Без SMS» + «Отмена»). Замена номера — провал; отмена — провал, если ждали {{ quick }} мин и дольше,
+  а раньше — «передумал» и не в счёт. Активации, которые ещё ждут SMS, тоже не учитываются.
+  <b>Выдача</b> — какую долю попыток поставщик действительно продал номер; нехватка нашего баланса на площадке не в счёт.<br>
+  В боте (статистика за {{ bot_days }} дн.) поставщики оцениваются по своим активациям в стране, а пока их мало — ближе
+  к уровню страны. Покупая, бот пробует самых надёжных первыми; в режиме «Авто» — среди всех стран.
+  Параметры — в «Настройках».
+</div>
+{% endblock %}

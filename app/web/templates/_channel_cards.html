@@ -1,0 +1,81 @@
+{# Карточки связок канал + обсуждение — страница «Каналы» и подгрузка при прокрутке #}
+{% from "_chat_link.html" import chat_link with context %}
+{% for p in pairs %}{% set ch, g = p.channel, p.group %}
+<div class="card pair">
+  <div class="head">
+    <div class="link">
+      <div>{{ chat_link(ch) }}</div>
+      <div class="arrow">↳ обсуждение</div>
+      <div>{% if g %}{{ chat_link(g) }}{% elif ch.linked_id %}<span class="muted">группа {{ ch.linked_id }} — бот о ней ничего не знает</span>{% else %}<span class="muted">нет группы обсуждения</span>{% endif %}</div>
+    </div>
+    <div style="text-align:right">
+      {% if p.ready %}<span class="badge on">комментирует</span>{% elif ch.comments_on %}<span class="badge waiting">не работает</span>{% else %}<span class="badge off">выключено</span>{% endif %}
+      {% if ch.last_comment_at %}<div class="muted" style="font-size:12px;margin-top:4px">последний комментарий {{ ch.last_comment_at|msk }}</div>{% endif %}
+      {% if ch.last_error %}<div class="bad" style="font-size:12px;margin-top:4px;max-width:320px">ошибка: {{ ch.last_error }}</div>{% endif %}
+    </div>
+  </div>
+  {% for h in p.hints %}<div class="hint">{{ h }}</div>{% endfor %}
+  <div class="actions">
+    <form method="post" action="{{ A }}/channels/{{ ch.id }}" class="inline">
+      <label><input type="checkbox" class="switch" name="comments_on" onchange="this.form.submit()" {{ 'checked' if ch.comments_on }}>
+        <b>Комментировать новые посты</b></label>
+    </form>
+    <span class="muted">Сообщений: {{ p.count }} из {{ max_messages }}</span>
+    <a class="btn secondary" href="{{ A }}/channels/{{ ch.id }}/messages">Редактировать сообщения</a>
+  </div>
+  {% set r, ri = p.ref, p.ref_info %}
+  {% if r %}
+  <div class="ref">
+    <div class="ref-row">
+      <span><b>Реферал</b>{% if not is_ref %} · логин <code>{{ r.login }}</code>{% endif %}</span>
+      <a class="balance" href="{{ A }}/channels/{{ ch.id }}/referral" title="История начислений и выплат">
+        Баланс: <b>{{ ri.balance|usd }}</b> →</a>
+      <span class="muted">приведено людей: {{ ri.users }} · заработано всего: {{ ri.earned|usd }}</span>
+    </div>
+    {% if p.ref_link %}
+    <div class="ref-row">
+      <span>{{ 'Ваша реферальная ссылка' if is_ref else 'Реферальная ссылка' }}:</span>
+      <code class="ref-link">{{ p.ref_link }}</code>
+      <button type="button" class="secondary" onclick="navigator.clipboard.writeText('{{ p.ref_link }}').then(() => { this.textContent = 'Скопировано'; setTimeout(() => this.textContent = 'Копировать', 1500) })">Копировать</button>
+    </div>
+    <div class="muted" style="font-size:12px">Её же содержит кнопка под комментариями бота к постам канала. Люди, впервые открывшие бота
+      по этой ссылке{{ ' — где угодно, не только в канале' if is_ref else '' }}, закрепляются за {{ 'вами' if is_ref else 'рефералом' }}.</div>
+    {% endif %}
+    <div class="ref-row">
+      {% if is_ref %}
+      <span>Ваша доля: <b>{{ '%g' % (r.revenue_percent if r.revenue_percent is not none else 15) }}%</b> от стоимости каждой успешной активации приглашённых вами людей.</span>
+      {% else %}
+      <form class="inline" method="post" action="{{ A }}/channels/{{ ch.id }}/referral/percent"
+        title="Реферал получает долю от выручки (цены активации), но не больше указанной доли нашей прибыли">
+        <label>Доля от выручки, %: <input type="number" name="revenue_percent"
+          value="{{ '%g' % (r.revenue_percent if r.revenue_percent is not none else 15) }}" min="0" max="100"
+          step="0.1" style="width:70px"></label>
+        <label>Максимум от прибыли, %: <input type="number" name="percent" value="{{ '%g' % r.percent }}" min="0" max="100"
+          step="0.1" style="width:70px"></label>
+        <input type="text" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="9" required
+          placeholder="Код аутентификатора" style="width:170px" title="Проценты — деньги: нужен код из приложения-аутентификатора">
+        <button class="secondary">OK</button>
+      </form>
+      <form class="inline" method="post" action="{{ A }}/channels/{{ ch.id }}/referral/password"
+        onsubmit="return confirm('Сбросить пароль? Старый перестанет работать, новый покажем один раз.')">
+        <button class="secondary">Сбросить пароль</button>
+      </form>
+      {% if not ri.blocker %}
+      <form class="inline" method="post" action="{{ A }}/channels/{{ ch.id }}/referral/delete"
+        onsubmit="return confirm('Удалить реферала «{{ ch.title }}»?\n\nСвязка станет обычной: реферальная ссылка, логин и пароль, история начислений будут удалены, привязанные люди ({{ ri.users }}) открепятся, кабинет друга закроется, а сам через страницу партнёрской программы канал больше не подключится. Это необратимо.')">
+        <button class="danger">Удалить реферала</button>
+      </form>
+      {% else %}
+      <button class="danger" disabled title="{{ ri.blocker }}">Удалить реферала</button>
+      {% endif %}
+      {% endif %}
+    </div>
+  </div>
+  {% elif not is_ref %}
+  <form class="inline" method="post" action="{{ A }}/channels/{{ ch.id }}/referral/make" style="margin-top:10px"
+    onsubmit="return confirm('Сделать «{{ ch.title }}» рефералом? Будут созданы реферальная ссылка и вход в кабинет.')">
+    <button class="secondary">Сделать рефералом</button>
+  </form>
+  {% endif %}
+</div>
+{% endfor %}

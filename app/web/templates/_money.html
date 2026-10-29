@@ -1,0 +1,52 @@
+{# Общее для страниц денег: поле кода аутентификатора, привязка по QR, резервные коды.
+   {% import "_money.html" as m %} #}
+
+{% macro code_field(label="Код из приложения", autofocus=false) -%}
+<input type="text" name="code" class="code" inputmode="numeric" autocomplete="one-time-code" maxlength="9"
+       placeholder="{{ label }}" required {{ 'autofocus' if autofocus }}
+       title="6 цифр из приложения-аутентификатора или резервный код">
+{%- endmacro %}
+
+{% macro styles() -%}
+<style>
+input.code{width:200px;letter-spacing:.12em;font-variant-numeric:tabular-nums}
+input.code::placeholder{letter-spacing:0}
+.qr{background:#fff;border-radius:12px;padding:10px;width:200px;height:200px;flex:none}  /* QR читается только на белом */
+.qr svg{width:100%;height:100%;display:block}
+.setup{display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap}
+.setup ol{margin:0;padding-left:20px;line-height:1.6}
+.setup .key{font:600 15px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.06em;
+  background:var(--fill);border-radius:8px;padding:6px 10px;display:inline-block;word-break:break-all;user-select:all}
+.codes{display:grid;grid-template-columns:repeat(2,max-content);gap:6px 24px;
+  font:600 17px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;margin:12px 0}
+.addr{font:13px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;word-break:break-all}
+</style>
+{%- endmacro %}
+
+{% macro setup_block(qr, secret_spaced, action) -%}
+<div class="setup">
+  <div class="qr">{{ qr|safe }}</div>
+  <div style="flex:1;min-width:260px">
+    <ol>
+      <li>Установите на телефон приложение-аутентификатор: Google Authenticator, Яндекс Ключ или любое другое.</li>
+      <li>Нажмите в нём «+» и отсканируйте QR-код. Не получается — введите ключ вручную:<br>
+        <span class="key">{{ secret_spaced }}</span></li>
+      <li>Введите 6 цифр, которые покажет приложение.</li>
+    </ol>
+    <form method="post" action="{{ action }}" class="inline" style="margin-top:12px">
+      {{ code_field(autofocus=true) }}
+      <button>Привязать</button>
+    </form>
+    <p class="muted" style="font-size:13px">Без телефона с этим приложением выводить и подтверждать операции будет
+      нельзя. После привязки покажем резервные коды — на случай, если телефон потеряется.</p>
+  </div>
+</div>
+{%- endmacro %}
+
+{% macro codes_block(codes) -%}
+<div class="notice ok">
+  <b>Сохраните резервные коды</b> — запишите на бумаге или в менеджер паролей. Каждый код срабатывает один раз
+  вместо кода из приложения, если телефон потеряется. Больше мы их не покажем.
+  <div class="codes">{% for c in codes %}<span>{{ c }}</span>{% endfor %}</div>
+</div>
+{%- endmacro %}

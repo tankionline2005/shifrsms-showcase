@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}{{ tr('orders_title') }} — ShifrSMS{% endblock %}
+{% block style %}
+.tools{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;margin:16px 0}
+.ord .phone{font-family:var(--mono);color:var(--muted);font-size:14px}
+.ord .price{font-weight:650;font-variant-numeric:tabular-nums;white-space:nowrap}
+.ord .meta{display:grid;justify-items:end;gap:4px}
+@media (max-width:640px){.tools{grid-template-columns:1fr}.ord .avatar{display:none}}
+{% endblock %}
+{% block content %}
+<h1>{{ tr('orders_title') }}</h1>
+<div class="tools">
+  <form class="search" method="get"><svg><use href="#i-search"/></svg>
+    <input type="search" name="q" value="{{ q }}" placeholder="{{ tr('orders_search') }}" inputmode="tel" autocomplete="off">
+    <input type="hidden" name="show" value="{{ show }}"><input type="hidden" name="sort" value="{{ sort }}"></form>
+  <div class="tabs">
+    <a href="?show=all&sort={{ sort }}{{ '&q=' ~ q if q }}" class="{{ 'on' if show != 'active' }}">{{ tr('orders_all') }}</a>
+    <a href="?show=active&sort={{ sort }}{{ '&q=' ~ q if q }}" class="{{ 'on' if show == 'active' }}">{{ tr('orders_active') }}</a>
+    <a href="?show={{ show }}&sort={{ 'old' if sort != 'old' else 'new' }}{{ '&q=' ~ q if q }}">{{ tr('orders_old') if sort != 'old' else tr('orders_new') }}</a>
+  </div>
+</div>
+{% if rows %}
+<div class="list">
+  {% for o in rows %}
+  {% set st = {'waiting': ('wait', 'st_waiting'), 'received': ('ok', 'st_received'), 'completed': ('acc', 'st_completed'),
+               'cancelled': ('off', 'st_cancelled'), 'replaced': ('off', 'st_replaced'), 'expired': ('off', 'st_expired')}[o.status] %}
+  <a class="ord" href="{{ P }}/orders/{{ o.id }}">
+    {{ logo(o.service) }}
+    <span class="grow"><b>{{ o.service.name }}</b> <span class="muted small">· {{ ctitle(o.country) }}</span><br>
+      <span class="phone">+{{ o.phone.lstrip('+') }}</span>
+      {% if o.messages %}<span class="small ok mono"> · {{ o.messages[-1].code or '' }}</span>{% endif %}</span>
+    <span class="meta"><span class="badge {{ st[0] }}">{{ tr(st[1]) }}</span>
+      <span class="small dim"><span class="price muted">{{ o.price|rub }}</span> · <time data-utc="{{ o.created_at.isoformat() }}"></time></span></span>
+  </a>
+  {% endfor %}
+</div>
+{% if pages > 1 %}<div class="pager">
+  {% if page > 0 %}<a class="btn ghost small" href="?page={{ page - 1 }}&show={{ show }}&sort={{ sort }}{{ '&q=' ~ q if q }}">‹</a>{% endif %}
+  <span class="chip">{{ page + 1 }} / {{ pages }}</span>
+  {% if page + 1 < pages %}<a class="btn ghost small" href="?page={{ page + 1 }}&show={{ show }}&sort={{ sort }}{{ '&q=' ~ q if q }}">›</a>{% endif %}
+</div>{% endif %}
+{% else %}
+<div class="card empty"><b>{{ tr('orders_empty') if not q else tr('nothing_found') }}</b>{{ tr('orders_empty_hint') if not q }}
+  {% if not q %}<div style="margin-top:16px"><a class="btn" href="{{ P }}">{{ tr('to_catalog') }}</a></div>{% endif %}</div>
+{% endif %}
+{% endblock %}

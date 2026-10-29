@@ -1,0 +1,214 @@
+{# Визуальный редактор текста с оформлением Telegram — для <textarea data-rich>.
+   Поле прячется, вместо него — панель кнопок и область, где оформление видно сразу. В textarea
+   всегда лежит готовая разметка Telegram (её и отправляет форма), в data-len — длина видимого
+   текста (так лимиты считает Telegram). Сервер чистит разметку ещё раз (app/textfmt.py). #}
+<style>
+.rich{border-radius:10px;background:var(--fill-2);transition:box-shadow .15s}
+.rich:focus-within{box-shadow:0 0 0 2px var(--accent)}
+.rich-bar{display:flex;flex-wrap:wrap;gap:2px;padding:4px;border-bottom:.5px solid var(--separator);background:var(--fill);border-radius:10px 10px 0 0}
+.rich-bar button{background:transparent;color:var(--text);border:1px solid transparent;border-radius:6px;padding:3px 8px;
+  min-width:30px;font-size:14px;font-weight:400;line-height:1.3;cursor:pointer}
+.rich-bar button:active{transform:scale(.92)}
+.rich-bar button:hover{background:var(--fill);filter:none}
+.rich-bar button.on{background:var(--accent-soft);color:var(--accent)}
+.rich-bar .sep{width:1px;background:var(--separator);margin:4px 4px}
+.rich-area{min-height:120px;max-height:420px;overflow:auto;padding:10px 12px;outline:none;font-size:16px;white-space:pre-wrap;word-break:break-word}
+.rich-area:empty::before{content:attr(data-placeholder);color:var(--muted)}
+.rich-area code{background:var(--fill);border-radius:4px;padding:0 4px;font-family:ui-monospace,Consolas,monospace}
+.rich-area .tg-spoiler{background:var(--text-3);border-radius:3px;color:var(--text)}
+.rich-area blockquote{margin:4px 0;padding:2px 10px;border-left:3px solid var(--accent);background:var(--accent-soft)}
+.rich-area a{color:var(--accent)}
+</style>
+<script>
+(() => {
+  if (window.RichEditor) { window.RichEditor.upgradeAll(); return; }
+  const TAGS = {B: "b", STRONG: "b", I: "i", EM: "i", U: "u", INS: "u", S: "s", STRIKE: "s", DEL: "s",
+                CODE: "code", PRE: "pre", A: "a", BLOCKQUOTE: "blockquote", "TG-SPOILER": "tg-spoiler"};
+  const BLOCKS = new Set(["DIV", "P", "LI"]);
+  const esc = s => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const okHref = h => /^(https?:\/\/|tg:\/\/)/i.test((h || "").trim());
+  const tagOf = n => n.tagName === "SPAN" && n.classList.contains("tg-spoiler") ? "tg-spoiler" : TAGS[n.tagName];
+
+  // разметка Telegram -> безопасные узлы редактора (только разрешённое оформление)
+  function toNodes(node) {
+    if (node.nodeType === 3) return [document.createTextNode(node.textContent)];
+    if (node.nodeType !== 1 || node.tagName === "SCRIPT" || node.tagName === "STYLE") return [];
+    if (node.tagName === "BR") return [document.createElement("br")];
+    const kids = [...node.childNodes].flatMap(toNodes), t = tagOf(node);
+    if (!t || (t === "a" && !okHref(node.getAttribute("href")))) return kids;
+    let el;
+    if (t === "tg-spoiler") { el = document.createElement("span"); el.className = "tg-spoiler"; }
+    else el = document.createElement(t);
+    if (t === "a") el.setAttribute("href", node.getAttribute("href").trim());
+    el.append(...kids);
+    return [el];
+  }
+  function load(area, html) {
+    const doc = new DOMParser().parseFromString("<body>" + (html || "").replace(/\r?\n/g, "<br>") + "</body>", "text/html");
+    area.replaceChildren(...[...doc.body.childNodes].flatMap(toNodes));
+  }
+
+  // редактор -> разметка Telegram
+  function serialize(root) {
+    let out = "";
+    const nl = () => { if (out && !out.endsWith("\n")) out += "\n"; };
+    (function walk(node) {
+      for (const n of node.childNodes) {
+        if (n.nodeType === 3) { out += esc(n.textContent); continue; }
+        if (n.nodeType !== 1) continue;
+        if (n.tagName === "BR") { out += "\n"; continue; }
+        if (BLOCKS.has(n.tagName)) { nl(); walk(n); continue; }
+        const t = tagOf(n);
+        if (!t || (t === "a" && !okHref(n.getAttribute("href")))) { walk(n); continue; }
+        if (t === "blockquote") nl();
+        out += t === "a" ? `<a href="${esc(n.getAttribute("href").trim()).replace(/"/g, "&quot;")}">` : `<${t}>`;
+        walk(n);
+        out += `</${t}>`;
+        if (t === "blockquote") out += "\n";
+      }
+    })(root);
+    for (let i = 0; i < 3; i++) out = out.replace(/<(b|i|u|s|code|pre|tg-spoiler|blockquote)><\/\1>/g, "");
+    return out.replace(/\s+$/, "");
+  }
+  const visibleLen = html => {
+    const t = document.createElement("textarea");
+    t.innerHTML = html.replace(/<[^>]+>/g, "");
+    return t.value.length;
+  };
+
+  function selectionIn(area) {
+    const sel = getSelection();
+    if (!sel.rangeCount) return null;
+    const r = sel.getRangeAt(0);
+    return area.contains(r.commonAncestorContainer) ? r : null;
+  }
+  const closest = (area, node, test) => {
+    for (let n = node; n && n !== area; n = n.parentNode) if (n.nodeType === 1 && test(n)) return n;
+    return null;
+  };
+  const unwrap = el => { el.replaceWith(...el.childNodes); };
+
+  // моноширинный и спойлер: обернуть выделение или снять, если курсор уже внутри
+  function toggleWrap(area, test, make) {
+    const r = selectionIn(area);
+    if (!r) return;
+    const inside = closest(area, r.commonAncestorContainer, test);
+    if (inside) { unwrap(inside); return; }
+    if (r.collapsed) return;
+    const el = make();
+    el.append(r.extractContents());
+    el.querySelectorAll("*").forEach(x => { if (test(x)) unwrap(x); });
+    r.insertNode(el);
+    const sel = getSelection(); sel.removeAllRanges();
+    const nr = document.createRange(); nr.selectNodeContents(el); sel.addRange(nr);
+  }
+
+  function clearFormat(area) {
+    const r = selectionIn(area);
+    if (!r || r.collapsed) return;
+    document.execCommand("removeFormat");
+    document.execCommand("unlink");
+    const r2 = selectionIn(area) || r;
+    area.querySelectorAll("code, span.tg-spoiler, a, b, strong, i, em, u, s, strike, del, ins").forEach(el => {
+      if (r2.intersectsNode(el)) unwrap(el);
+    });
+    if (closest(area, r2.commonAncestorContainer, n => n.tagName === "BLOCKQUOTE")) document.execCommand("formatBlock", false, "<div>");
+  }
+
+  function link(area) {
+    const r = selectionIn(area);
+    if (!r) return;
+    const current = closest(area, r.commonAncestorContainer, n => n.tagName === "A");
+    const url = prompt("Адрес ссылки (пусто — убрать ссылку):", current ? current.getAttribute("href") : "https://");
+    if (url === null) return;
+    if (!url.trim() || url.trim() === "https://") { if (current) unwrap(current); else document.execCommand("unlink"); return; }
+    if (!okHref(url)) { alert("Ссылка должна начинаться с https:// (или http://, tg://)."); return; }
+    if (current) { current.setAttribute("href", url.trim()); return; }
+    if (r.collapsed) document.execCommand("insertHTML", false, `<a href="${esc(url.trim()).replace(/"/g, "&quot;")}">${esc(url.trim())}</a>`);
+    else document.execCommand("createLink", false, url.trim());
+  }
+
+  const BUTTONS = [
+    ["bold", "<b>B</b>", "Жирный (Ctrl+B)"], ["italic", "<i>I</i>", "Курсив (Ctrl+I)"],
+    ["underline", "<u>U</u>", "Подчёркнутый (Ctrl+U)"], ["strikeThrough", "<s>S</s>", "Зачёркнутый"], "|",
+    ["code", "&lt;/&gt;", "Моноширинный — удобно для кодов и команд, копируется нажатием"],
+    ["spoiler", "▒", "Спойлер — текст скрыт, пока на него не нажмут"],
+    ["link", '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>', "Ссылка"], ["quote", "❝", "Цитата"], "|",
+    ["clear", "<b>A</b>̶", "Убрать всё форматирование выделенного текста"],
+  ];
+
+  function upgrade(ta) {
+    if (ta.dataset.richReady) return;
+    ta.dataset.richReady = "1";
+    const box = document.createElement("div"), bar = document.createElement("div"), area = document.createElement("div");
+    box.className = "rich"; bar.className = "rich-bar"; area.className = "rich-area";
+    area.contentEditable = "true";
+    area.dataset.placeholder = ta.placeholder || "";
+    area.style.minHeight = (ta.offsetHeight || 120) + "px";
+    for (const b of BUTTONS) {
+      if (b === "|") { const s = document.createElement("span"); s.className = "sep"; bar.appendChild(s); continue; }
+      const btn = document.createElement("button");
+      btn.type = "button"; btn.innerHTML = b[1]; btn.title = b[2]; btn.dataset.cmd = b[0];
+      btn.addEventListener("mousedown", e => e.preventDefault());  // не терять выделение
+      btn.addEventListener("click", () => { area.focus(); run(b[0]); });
+      bar.appendChild(btn);
+    }
+    box.append(bar, area);
+    ta.hidden = true;
+    ta.after(box);
+    load(area, ta.value);
+
+    const sync = () => {
+      if (area.innerHTML === "<br>") area.innerHTML = "";
+      const html = serialize(area);
+      ta.value = html;
+      ta.dataset.len = visibleLen(html);
+      ta.dispatchEvent(new Event("input", {bubbles: true}));
+      state();
+    };
+    function run(cmd) {
+      if (["bold", "italic", "underline", "strikeThrough"].includes(cmd)) document.execCommand(cmd);
+      else if (cmd === "code") toggleWrap(area, n => n.tagName === "CODE", () => document.createElement("code"));
+      else if (cmd === "spoiler") toggleWrap(area, n => n.classList && n.classList.contains("tg-spoiler"),
+                                             () => { const s = document.createElement("span"); s.className = "tg-spoiler"; return s; });
+      else if (cmd === "link") link(area);
+      else if (cmd === "quote") {
+        const r = selectionIn(area);
+        const q = r && closest(area, r.commonAncestorContainer, n => n.tagName === "BLOCKQUOTE");
+        document.execCommand("formatBlock", false, q ? "<div>" : "<blockquote>");
+      } else if (cmd === "clear") clearFormat(area);
+      sync();
+    }
+    function state() {  // подсветить кнопки оформления под курсором
+      const r = selectionIn(area);
+      bar.querySelectorAll("button").forEach(btn => {
+        const c = btn.dataset.cmd;
+        let on = false;
+        if (r) {
+          const at = r.commonAncestorContainer;
+          if (["bold", "italic", "underline", "strikeThrough"].includes(c)) on = document.queryCommandState(c);
+          else if (c === "code") on = !!closest(area, at, n => n.tagName === "CODE");
+          else if (c === "spoiler") on = !!closest(area, at, n => n.classList.contains("tg-spoiler"));
+          else if (c === "link") on = !!closest(area, at, n => n.tagName === "A");
+          else if (c === "quote") on = !!closest(area, at, n => n.tagName === "BLOCKQUOTE");
+        }
+        btn.classList.toggle("on", on);
+      });
+    }
+    area.addEventListener("input", sync);
+    area.addEventListener("paste", e => {  // вставка — только текст, без чужого оформления
+      e.preventDefault();
+      document.execCommand("insertText", false, (e.clipboardData || window.clipboardData).getData("text/plain"));
+    });
+    area.addEventListener("drop", e => e.preventDefault());
+    document.addEventListener("selectionchange", state);
+    ta.dataset.len = visibleLen(ta.value);
+  }
+
+  window.RichEditor = {
+    upgradeAll: () => document.querySelectorAll("textarea[data-rich]").forEach(upgrade),
+    len: el => el.dataset.len !== undefined ? +el.dataset.len : el.value.length,  // длина видимого текста
+  };
+  window.RichEditor.upgradeAll();
+})();
+</script>

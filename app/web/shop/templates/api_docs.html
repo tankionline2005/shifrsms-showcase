@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}API — ShifrSMS{% endblock %}
+{% block robots %}index{% endblock %}
+{% block style %}
+.doc{max-width:900px;display:grid;gap:16px}
+.doc h2{margin-top:10px}
+.doc p,.doc li{color:var(--muted);line-height:1.6}
+.doc code{font-family:var(--mono);font-size:13.5px;background:var(--raised);border:1px solid var(--line);padding:1px 6px;border-radius:6px;color:var(--text)}
+.doc pre{margin:0;padding:14px 16px;border-radius:var(--r-s);background:#08070a;border:1px solid var(--line);overflow:auto;font:13.5px/1.55 var(--mono);color:#e6e1ea}
+.ep{display:grid;grid-template-columns:auto 1fr;gap:10px 14px;align-items:start}
+.ep b{font-family:var(--mono);font-size:12px;font-weight:600;padding:3px 8px;border-radius:6px;background:var(--accent-soft);color:var(--accent-h);text-align:center}
+.ep b.get{background:var(--ok-soft);color:var(--ok)}
+.ep span{font-family:var(--mono);font-size:14px;color:var(--text);word-break:break-all}
+.ep small{grid-column:2;color:var(--muted);font-size:14px;margin-top:-6px}
+table.t{width:100%;border-collapse:collapse;font-size:14px}
+table.t td,table.t th{padding:8px 10px;border-top:1px solid var(--line);text-align:left;vertical-align:top}
+table.t th{color:var(--dim);font-weight:500;border-top:0}
+table.t td:first-child{font-family:var(--mono);white-space:nowrap;color:var(--text)}
+{% endblock %}
+{% block content %}
+{% set en = lang == 'en' %}
+<div class="doc">
+  <h1>{{ 'API documentation' if en else 'Документация API' }}</h1>
+  <div class="card stack">
+    <p>{{ 'Buy SMS activations from your own software. Two formats are available: a simple JSON REST API and an API compatible with SMS-Activate — programs that support SMS-Activate work after you replace the URL and the key.' if en else
+          'Покупайте активации из своих программ. Есть два формата: простой REST API с JSON и API, совместимый с SMS-Activate, — программы, умеющие работать с SMS-Activate, подключаются заменой адреса и ключа.' }}</p>
+    <p>{{ 'The API key is created in' if en else 'Ключ API создаётся в' }} <a href="{{ P }}/profile#api">{{ tr('profile_title')|lower if not en else 'your profile' }}</a> —
+      {{ 'available after your first top-up. Prices and the balance are in rubles. Rate limit: 20 requests per second per key.' if en else
+         'доступен после первого пополнения баланса. Цены и баланс — в рублях. Не больше 20 запросов в секунду на ключ.' }}</p>
+  </div>
+
+  <h2>{{ 'Price and country selection' if en else 'Выбор цены и страны' }}</h2>
+  <div class="card"><ul style="margin:0;padding-left:20px">
+    {% if en %}
+    <li>Each country has several price levels: as a rule, the more expensive, the more reliable.</li>
+    <li>Without <code>max_price</code> (<code>maxPrice</code>) — the cheapest level is bought. With it — the most expensive (most reliable) level not above it.</li>
+    <li>Without a country — <b>Auto</b> mode: the most reliable activation in the price range across all countries.</li>
+    <li>If no SMS arrives, the money returns to the balance automatically (on expiry, cancel or replacement).</li>
+    {% else %}
+    <li>У каждой страны несколько уровней цены: как правило, чем дороже, тем надёжнее.</li>
+    <li>Без <code>max_price</code> (<code>maxPrice</code>) покупается самый дешёвый уровень. С ним — самый дорогой (надёжный) уровень не дороже указанной цены.</li>
+    <li>Без страны — режим <b>«Авто»</b>: самая надёжная активация в ценовой категории среди всех стран.</li>
+    <li>Если SMS не придёт, деньги вернутся на баланс сами (по истечении, при отмене или замене номера).</li>
+    {% endif %}
+  </ul></div>
+
+  <h2>REST API</h2>
+  <div class="card stack">
+    <p>{{ 'Base URL' if en else 'Адрес' }}: <code>{{ public_url }}/api/v1</code>. {{ 'Key' if en else 'Ключ' }}: <code>Authorization: Bearer &lt;key&gt;</code>
+      {{ '(or the X-API-Key header, or ?api_key=)' if en else '(или заголовок X-API-Key, или ?api_key=)' }}.</p>
+    <div class="ep">
+      <b class="get">GET</b><span>/balance</span><small>{{ 'Balance' if en else 'Баланс' }}</small>
+      <b class="get">GET</b><span>/services</span><small>{{ 'Services and their codes' if en else 'Сервисы и их коды' }}</small>
+      <b class="get">GET</b><span>/services/{code}/prices</span><small>{{ 'Auto price levels and per-country levels' if en else 'Уровни цены «Авто» и по странам' }}</small>
+      <b>POST</b><span>/orders</span><small>{{ 'Buy: {"service": "tg", "country": "6", "max_price": 30} — country and max_price are optional' if en else 'Купить: {"service": "tg", "country": "6", "max_price": 30} — страна и max_price необязательны' }}</small>
+      <b class="get">GET</b><span>/orders?active=1</span><small>{{ 'Your orders (active only with active=1)' if en else 'Ваши заказы (только активные — active=1)' }}</small>
+      <b class="get">GET</b><span>/orders/{id}</span><small>{{ 'Order status and received SMS' if en else 'Статус заказа и пришедшие SMS' }}</small>
+      <b>POST</b><span>/orders/{id}/cancel</span><small>{{ 'Cancel (money returns to the balance)' if en else 'Отменить (деньги вернутся на баланс)' }}</small>
+      <b>POST</b><span>/orders/{id}/replace</span><small>{{ 'Another number for no more than the paid price' if en else 'Другой номер не дороже уплаченной цены' }}</small>
+      <b>POST</b><span>/orders/{id}/another</span><small>{{ 'Request another SMS' if en else 'Запросить ещё SMS' }}</small>
+      <b>POST</b><span>/orders/{id}/finish</span><small>{{ 'Finish the activation' if en else 'Завершить активацию' }}</small>
+    </div>
+<pre>curl -X POST {{ public_url }}/api/v1/orders \
+  -H "Authorization: Bearer YOUR_KEY" -H "Content-Type: application/json" \
+  -d '{"service": "tg", "max_price": 40}'
+
+{"ok": true, "order": {"id": 1842, "status": "waiting", "phone": "6281244170935", "price": "35.00",
+  "currency": "RUB", "service": {"code": "tg", "name": "Telegram"},
+  "country": {"code": "6", "name": "Indonesia", "iso": "ID"}, "sms": [],
+  "expires_at": "2026-10-20T12:20:00Z", "cancel_available_at": "2026-10-20T12:02:00Z"}}</pre>
+    <p>{{ 'Order statuses' if en else 'Статусы заказа' }}: <code>waiting</code>, <code>received</code>, <code>completed</code>, <code>cancelled</code>, <code>replaced</code>, <code>expired</code>.
+      {{ 'Errors' if en else 'Ошибки' }}: <code>{"ok": false, "error": "NO_BALANCE", "message": "..."}</code> — BAD_KEY, BAD_SERVICE, BAD_COUNTRY, NO_NUMBERS, NO_BALANCE, WRONG_MAX_PRICE, TOO_MANY_ACTIVE, RATE_LIMIT.</p>
+  </div>
+
+  <h2>{{ 'SMS-Activate compatible API' if en else 'API, совместимый с SMS-Activate' }}</h2>
+  <div class="card stack">
+    <p>{{ 'URL' if en else 'Адрес' }}: <code>{{ public_url }}/stubs/handler_api.php?api_key=KEY&amp;action=...</code>
+      {{ '— in your program, replace the SMS-Activate URL with ours and enter our key. Service and country codes are the same as SMS-Activate’s (where a service or country has no such code, ours is used: s123, c45 — see getServicesList and getCountries).' if en else
+         '— в программе замените адрес SMS-Activate на наш и укажите наш ключ. Коды сервисов и стран — как у SMS-Activate (где такого кода нет — наш: s123, c45; см. getServicesList и getCountries).' }}</p>
+    <table class="t">
+      <tr><th>action</th><th>{{ 'Parameters' if en else 'Параметры' }}</th><th>{{ 'Response' if en else 'Ответ' }}</th></tr>
+      <tr><td>getBalance</td><td>—</td><td><code>ACCESS_BALANCE:123.45</code></td></tr>
+      <tr><td>getNumber</td><td>service, country*, maxPrice*</td><td><code>ACCESS_NUMBER:ID:PHONE</code>, NO_NUMBERS, NO_BALANCE, BAD_SERVICE, WRONG_MAX_PRICE:min</td></tr>
+      <tr><td>getNumberV2</td><td>service, country*, maxPrice*</td><td>JSON: activationId, phoneNumber, activationCost…</td></tr>
+      <tr><td>getStatus</td><td>id</td><td><code>STATUS_WAIT_CODE</code>, <code>STATUS_OK:CODE</code>, <code>STATUS_CANCEL</code></td></tr>
+      <tr><td>setStatus</td><td>id, status</td><td>8 — {{ 'cancel' if en else 'отмена' }} (ACCESS_CANCEL / EARLY_CANCEL_DENIED), 6 — {{ 'finish' if en else 'завершить' }} (ACCESS_ACTIVATION), 3 — {{ 'another SMS' if en else 'ещё SMS' }} (ACCESS_RETRY_GET), 1 — ACCESS_READY</td></tr>
+      <tr><td>getActiveActivations</td><td>—</td><td>JSON</td></tr>
+      <tr><td>getPrices</td><td>service*, country*</td><td>JSON {country: {service: {cost, count}}}</td></tr>
+      <tr><td>getCountries</td><td>—</td><td>JSON</td></tr>
+      <tr><td>getServicesList</td><td>—</td><td>JSON</td></tr>
+    </table>
+    <p class="small">* — {{ 'optional. Without a country — Auto mode.' if en else 'необязательно. Без страны — режим «Авто».' }}</p>
+<pre>GET {{ public_url }}/stubs/handler_api.php?api_key=KEY&amp;action=getNumber&amp;service=tg&amp;country=6
+ACCESS_NUMBER:1842:6281244170935
+
+GET {{ public_url }}/stubs/handler_api.php?api_key=KEY&amp;action=getStatus&amp;id=1842
+STATUS_OK:51824</pre>
+  </div>
+</div>
+{% endblock %}

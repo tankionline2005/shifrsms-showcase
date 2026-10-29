@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% from "_chat_link.html" import chat_link with context %}
+
+{% block content %}
+<style>
+.pair .head{display:grid;grid-template-columns:1fr auto;gap:6px 16px;align-items:start}
+.pair .link{display:flex;flex-direction:column;gap:4px}
+.pair .arrow{color:var(--muted);font-size:12px;margin-left:22px}
+.pair .hint{margin-top:10px}
+.pair .actions{display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-top:12px}
+.pair .ref{margin-top:12px;padding-top:12px;border-top:1px solid var(--border);display:grid;gap:8px}
+.pair .ref-row{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+.pair .ref-link{user-select:all;word-break:break-all}
+.pair .balance{background:var(--accent-soft);color:var(--accent);padding:3px 12px;border-radius:99px}
+.pair .balance:hover{text-decoration:none;filter:brightness(1.15)}
+</style>
+
+<h1>{{ 'Ваш канал' if is_ref else 'Каналы' }}</h1>
+{% if flash %}
+<div class="card" style="background:var(--green-soft)">
+  {# текст карточки для партнёра — копируется кнопкой целиком; предупреждение ниже — только для нас #}
+  <div id="partner-access">
+    <b>{{ 'Канал «' ~ flash.title ~ '» теперь партнёр. Данные для входа в личный кабинет:' if flash.new
+          else 'Новые данные для входа в личный кабинет канала «' ~ flash.title ~ '»:' }}</b>
+    <div class="lines" style="margin-top:8px;display:grid;gap:4px">
+      <div>Кабинет: <a href="{{ ref_url }}" target="_blank" rel="noopener">{{ ref_url }}</a></div>
+      <div>Логин: <code>{{ flash.login }}</code></div>
+      <div>Пароль: <code>{{ flash.password }}</code></div>
+    </div>
+  </div>
+  <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:12px">
+    <button type="button" class="secondary" id="copy-access">Скопировать</button>
+    <span class="warn" style="font-size:13px">Пароль показывается только сейчас, потом его можно лишь сбросить</span>
+  </div>
+</div>
+<script>
+(() => {
+  const btn = document.getElementById("copy-access"), box = document.getElementById("partner-access");
+  // текст для партнёра: логин и пароль — в `обратных кавычках` (Telegram при отправке делает их моноширинными);
+  // для программ, которые вставляют оформление, — ещё и HTML с <code>
+  const lines = () => [...box.querySelectorAll("b, .lines > div")];
+  const plain = () => lines().map(el => [...el.childNodes].map(n =>
+    n.nodeName === "CODE" ? "`" + n.textContent.trim() + "`" : n.textContent).join("").trim()).join("\n");
+  const html = () => lines().map(el => el.tagName === "B" ? `<b>${el.innerHTML}</b>` : el.innerHTML.trim()).join("<br>");
+  btn.addEventListener("click", async () => {
+    try {
+      if (window.ClipboardItem) {
+        await navigator.clipboard.write([new ClipboardItem({
+          "text/plain": new Blob([plain()], {type: "text/plain"}), "text/html": new Blob([html()], {type: "text/html"})})]);
+      } else {
+        await navigator.clipboard.writeText(plain());
+      }
+      btn.textContent = "Скопировано";
+    } catch (e) {
+      try { await navigator.clipboard.writeText(plain()); btn.textContent = "Скопировано"; }
+      catch (e2) { const r = document.createRange(); r.selectNodeContents(box);
+        const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); btn.textContent = "Выделено — скопируйте"; }
+    }
+    setTimeout(() => { btn.textContent = "Скопировать"; }, 1800);
+  });
+})();
+</script>
+{% endif %}
+{% if is_ref %}
+{# кабинет партнёра — свой вид: шапка канала, цифры, шаги настройки, комментарии, ссылка #}
+{% if error %}<div class="notice bad">{{ error }}</div>{% endif %}
+{% include "_partner_channel.html" %}
+{% if not pairs %}<div class="card muted">Канал пока не подключён — напишите нам.</div>{% endif %}
+{% else %}
+<div class="card muted" style="font-size:13px">
+  Под каждым новым постом канала бот оставляет комментарий — одно из сообщений связки, выбранное случайно, с кнопкой,
+  ведущей в бота (текст кнопки задаётся у каждого сообщения). Комментарии к посту живут в группе обсуждения канала, поэтому канал и группа показаны вместе.
+  Чтобы бот видел новые посты, добавьте {{ bot_name }} <b>администратором в группу обсуждения</b>
+  (достаточно права «Отправка сообщений»). В сам канал бота добавлять не обязательно.<br>
+  Бот запоминает чаты, когда его добавляют или меняют ему права. Если бот уже был в группе раньше — добавьте канал
+  здесь по @username, ссылке или ID.
+</div>
+
+<div class="filters">
+  <form class="inline" method="post" action="{{ A }}/channels/add">
+    <input type="text" name="ref" placeholder="@канал, ссылка или ID" required style="width:240px">
+    <button>Добавить</button>
+  </form>
+  <form class="inline" method="post" action="{{ A }}/channels/refresh">
+    <button class="secondary" title="Заново спросить у Telegram права бота и связи каналов с обсуждениями">Обновить сведения</button>
+  </form>
+  <a class="btn secondary" href="{{ A }}/channels/0/messages"
+     title="Копируется первым сообщением в каждый новый канал">Шаблон сообщения</a>
+  {% if error %}<span class="bad">{{ error }}</span>{% endif %}
+</div>
+
+<div id="pairs">
+{% include "_channel_cards.html" %}
+</div>
+{% if not pairs %}
+<div class="card muted">Каналов пока нет. Добавьте бота администратором в группу обсуждения своего канала
+  или добавьте канал выше по @username.</div>
+{% endif %}
+<div id="more-state" class="muted" style="text-align:center;padding:14px;font-size:13px"></div>
+{% if more_total > shown %}
+<script>
+// остальные связки подгружаются по {{ step }}, когда долистали до конца списка
+(() => {
+  const total = {{ more_total }}, step = {{ step }};
+  let shown = {{ shown }}, loading = false;
+  const state = document.getElementById("more-state"), list = document.getElementById("pairs");
+  const left = () => Math.max(0, total - shown);
+  const label = () => {  // можно и нажать, если прокрутка не сработала (например, вкладка в фоне)
+    state.textContent = left() ? `Показать ещё ↓ (${left()})` : "";
+    state.style.cursor = left() ? "pointer" : "";
+  };
+  label();
+  async function load() {
+    if (loading || !left()) return;
+    loading = true; state.textContent = "Загружаем…";
+    try {
+      const r = await fetch(`{{ A }}/channels/more?offset=${shown}`, {credentials: "same-origin"});
+      if (!r.ok) throw new Error(r.status);
+      list.insertAdjacentHTML("beforeend", await r.text());
+      shown += step;
+    } catch (err) { state.textContent = "Не удалось загрузить: " + err + " — нажмите, чтобы повторить"; loading = false; return; }
+    loading = false; label();
+    if (!left()) io.disconnect();
+  }
+  const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) load(); }, {rootMargin: "400px"});
+  io.observe(state);
+  state.addEventListener("click", load);
+})();
+</script>
+{% endif %}
+
+{% if others %}
+<h2>Другие чаты бота</h2>
+<div class="tablewrap"><table>
+  <tr><th>Чат</th><th>Тип</th><th>Связан с</th><th>Обновлено ({{ tz_label() }})</th></tr>
+  {% for c in others %}
+  <tr>
+    <td>{{ chat_link(c) }}</td>
+    <td>{{ types.get(c.type, c.type) }}</td>
+    <td class="muted">{{ c.linked_id or '—' }}</td>
+    <td>{{ c.updated_at|msk }}</td>
+  </tr>
+  {% endfor %}
+</table></div>
+{% endif %}
+{% endif %}
+{% endblock %}

@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% import "_money.html" as m %}
+{% import "_paged.html" as pg %}
+
+{% macro address_picker(prefix, selected="") -%}
+{# сохранённый адрес из списка или другой — вручную #}
+<div class="picker">
+  <select name="wallet_id" data-picker>
+    {% for w in wallets %}<option value="{{ w.id }}" {{ 'selected' if w.address == selected }}>{{ w.name }} · {{ w.address[:6] }}…{{ w.address[-4:] }}</option>{% endfor %}
+    <option value="" {{ 'selected' if not wallets or (selected and selected not in wallets|map(attribute='address')|list) }}>Другой адрес…</option>
+  </select>
+  <input type="text" name="address" placeholder="Адрес USDT TRC20 (начинается с T)" autocomplete="off" spellcheck="false"
+         value="{{ selected if selected and selected not in wallets|map(attribute='address')|list else '' }}">
+</div>
+{%- endmacro %}
+
+{% block content %}
+{{ m.styles() }}
+<style>
+.wd{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:900px){.wd{grid-template-columns:minmax(0,1fr)}}
+.wd form.stack{display:grid;gap:10px}
+.wd label.f{display:grid;gap:4px;font-size:13px;color:var(--text-2)}
+.picker{display:grid;gap:8px}
+.picker input,.wd input[type=text]{width:100%}
+.amount{display:flex;gap:8px}
+.amount input{flex:1}
+.preview{font-size:14px;min-height:20px}
+.preview b{font-variant-numeric:tabular-nums}
+.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.badge.done{background:var(--green-soft);color:var(--green)}
+.badge.failed{background:var(--red-soft);color:var(--red)}
+.badge.queued,.badge.signed{background:var(--orange-soft);color:var(--orange)}
+.badge.canceled{background:var(--fill);color:var(--text-2)}
+</style>
+
+<h1>Вывести · {{ row.login }}</h1>
+{% if error %}<div class="notice bad">{{ error }}</div>{% endif %}
+{% if saved %}<div class="notice ok">{{ saved }}</div>{% endif %}
+{% if codes %}{{ m.codes_block(codes) }}{% endif %}
+{% if not enabled %}<div class="hint" style="margin-bottom:16px">Кошелёк системы ещё не подключён — выводы заработают,
+  как только его подключат. Аутентификатор и адреса можно настроить уже сейчас.</div>{% endif %}
+
+{% if not bound %}
+<div class="card">
+  <h2 style="margin-top:0">Сначала — аутентификатор</h2>
+  <p class="muted" style="margin-top:-6px">Каждый вывод, сохранение адреса и включение автовывода подтверждается кодом
+    из приложения на вашем телефоне. Так деньги не уйдут, даже если кто-то узнает ваш пароль.</p>
+  {{ m.setup_block(qr, secret_spaced, A ~ "/withdraw/2fa") }}
+</div>
+{% else %}
+
+<div class="grid">
+  <div class="card stat"><div class="muted">Баланс</div><div class="v">{{ balance|usd }}</div></div>
+  <div class="card stat"><div class="muted">Минимальный вывод</div><div class="v">{{ min_withdraw|usd }}</div></div>
+  <div class="card stat"><div class="muted">Сеть</div><div class="v" style="font-size:20px">USDT · TRC20</div></div>
+</div>
+
+<div class="wd">
+  <div>
+    <div class="card">
+      <h2 style="margin-top:0">Вывод на кошелёк</h2>
+      <form method="post" action="{{ A }}/withdraw" class="stack" id="wd-form">
+        <label class="f">Сумма, $ — спишется с баланса
+          <div class="amount">
+            <input type="text" name="amount" inputmode="decimal" placeholder="например, 50.00" required autocomplete="off">
+            <button type="button" class="secondary" data-all="{{ '%.2f' % (balance|round(2, 'floor')) }}">Весь баланс</button>
+          </div>
+        </label>
+        <label class="f">Куда{{ address_picker("wd") }}</label>
+        <div class="preview muted" id="preview">Комиссию сети за перевод оплачивает выводящий: на кошелёк придёт сумма
+          минус комиссия.</div>
+        <div class="inline" style="display:flex;gap:8px;flex-wrap:wrap">
+          {{ m.code_field() }}
+          <button>Вывести</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2 style="margin-top:0">История выводов</h2>
+      {% call pg.box(A ~ "/withdraw/history", "Поиск: адрес, сумма, статус") %}{% include "_tbl_withdrawals.html" %}{% endcall %}
+    </div>
+  </div>
+
+  <div>
+    <div class="card">
+      <h2 style="margin-top:0">Автовывод</h2>
+      {% if row.auto_threshold %}
+      <p class="ok" style="margin-top:-6px">Включён: от {{ row.auto_threshold|usd }} — весь баланс на
+        <span class="addr">{{ row.auto_address[:6] }}…{{ row.auto_address[-4:] }}</span></p>
+      {% else %}
+      <p class="muted" style="margin-top:-6px">Когда на балансе наберётся указанная сумма, весь баланс сам уйдёт на
+        выбранный адрес (за вычетом комиссии сети).</p>
+      {% endif %}
+      <form method="post" action="{{ A }}/withdraw/auto" class="stack">
+        <label><input type="checkbox" class="switch" name="enabled" {{ 'checked' if row.auto_threshold }}> Автовывод</label>
+        <label class="f">Выводить, когда на балансе от, $ (не меньше {{ min_auto|usd }})
+          <input type="text" name="threshold" inputmode="decimal" value="{{ row.auto_threshold or min_auto }}"></label>
+        <label class="f">Куда{{ address_picker("auto", row.auto_address or "") }}</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">{{ m.code_field() }}<button>Сохранить</button></div>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2 style="margin-top:0">Сохранённые адреса</h2>
+      {% for w in wallets %}
+      <div style="display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:.5px solid var(--separator)">
+        <div style="flex:1;min-width:0"><b>{{ w.name }}</b><div class="addr muted">{{ w.address }}</div></div>
+        <form method="post" action="{{ A }}/withdraw/wallets/{{ w.id }}/delete" onsubmit="return confirm('Удалить адрес «{{ w.name }}» из сохранённых?')">
+          <button class="secondary" style="padding:4px 10px;font-size:13px">Удалить</button></form>
+      </div>
+      {% else %}
+      <p class="muted" style="margin-top:-6px">Сохраните адрес, чтобы не вводить его каждый раз.</p>
+      {% endfor %}
+      <form method="post" action="{{ A }}/withdraw/wallets" class="stack" style="margin-top:12px">
+        <input type="text" name="name" placeholder="Название, например «Trust Wallet»" maxlength="64">
+        <input type="text" name="address" placeholder="Адрес USDT TRC20" required autocomplete="off" spellcheck="false">
+        <div style="display:flex;gap:8px;flex-wrap:wrap">{{ m.code_field() }}<button>Сохранить адрес</button></div>
+      </form>
+    </div>
+    <p class="muted" style="font-size:12px">Резервных кодов осталось: {{ recovery_left }}. Потеряли телефон с
+      аутентификатором — напишите владельцам, привязку сбросят.</p>
+  </div>
+</div>
+{% endif %}
+
+<script>
+(() => {
+  // адрес: из сохранённых или «Другой адрес…» — тогда видно поле ввода
+  document.querySelectorAll(".picker").forEach(p => {
+    const sel = p.querySelector("[data-picker]"), input = p.querySelector("input[name=address]");
+    const sync = () => { input.hidden = sel.value !== ""; input.required = sel.value === ""; };
+    sel.addEventListener("change", sync); sync();
+  });
+  const form = document.getElementById("wd-form");
+  if (!form) return;
+  const amount = form.querySelector("[name=amount]"), preview = document.getElementById("preview");
+  form.querySelector("[data-all]").addEventListener("click", e => { amount.value = e.target.dataset.all; ask(); });
+  let timer = null, seq = 0;
+  const ask = () => {
+    clearTimeout(timer);
+    timer = setTimeout(async () => {
+      const data = new FormData(form);
+      data.delete("code");
+      if (!data.get("amount") || (!data.get("wallet_id") && !data.get("address"))) return;
+      const my = ++seq;
+      preview.className = "preview muted"; preview.textContent = "Считаем комиссию сети…";
+      try {
+        const r = await (await fetch("{{ A }}/withdraw/quote", {method: "POST", body: data, credentials: "same-origin"})).json();
+        if (my !== seq) return;
+        if (r.error) { preview.className = "preview bad"; preview.textContent = r.error; return; }
+        preview.className = "preview";
+        preview.innerHTML = `Спишется <b>$${r.amount}</b> · комиссия сети ≈ <b>$${r.fee}</b> (${r.fee_trx} TRX) · `
+          + `на кошелёк придёт <b class="ok">$${r.send}</b>`;
+      } catch (e) { preview.className = "preview bad"; preview.textContent = "Не удалось рассчитать комиссию — проверьте связь."; }
+    }, 500);
+  };
+  form.addEventListener("input", e => { if (e.target.name !== "code") ask(); });
+  form.addEventListener("change", e => { if (e.target.name !== "code") ask(); });
+  form.addEventListener("submit", e => {
+    if (!confirm("Вывести $" + amount.value + "? Перевод в сети отменить будет нельзя.")) e.preventDefault();
+  });
+})();
+</script>
+{{ pg.assets() }}
+{% endblock %}

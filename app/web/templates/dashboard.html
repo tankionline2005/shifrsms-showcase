@@ -1,0 +1,237 @@
+{% extends "base.html" %}
+{% macro delta(v) -%}
+  {%- if v is none -%}<span class="muted">нет данных для сравнения</span>
+  {%- else -%}<span class="{{ 'ok' if v >= 0 else 'bad' }}">{{ '▲ +' if v >= 0 else '▼ −' }}{{ '%.0f' % (v|abs) }}%</span>
+    <span class="muted">к прошлым {{ a.days }} дн.</span>
+  {%- endif -%}
+{%- endmacro %}
+{% macro top_table(title, rows) -%}
+<div class="card" style="padding:0">
+  <h3 style="margin:0;padding:14px 16px 6px">{{ title }}</h3>
+  <table>
+    <tr><th></th><th class="num">Успешных</th><th class="num">Выручка</th><th class="num">Прибыль</th><th class="num">Маржа</th></tr>
+    {% for t in rows %}
+    <tr><td>{{ t.name }}</td><td class="num">{{ t.ok }}</td><td class="num">{{ t.revenue|rub }}</td>
+      <td class="num">{{ t.profit|rub }}</td><td class="num muted">{{ '%.0f%%' % t.margin if t.margin is not none else '—' }}</td></tr>
+    {% else %}
+    <tr><td colspan="5" class="muted">Продаж за период нет</td></tr>
+    {% endfor %}
+  </table>
+</div>
+{%- endmacro %}
+
+{% block content %}
+<style>
+.head{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.provider.on{background:color-mix(in srgb,var(--green) 9%,var(--card))}   /* площадка включена */
+.provider.off{background:color-mix(in srgb,var(--red) 9%,var(--card))}  /* площадка выключена */
+.head h1{margin:0}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+.kpi .v{font-size:28px}
+.kpi .d{font-size:12px;margin-top:6px}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px}
+.two .card{margin-bottom:0}
+.chart-card h3{margin:0 0 2px}
+.legend{display:flex;gap:16px;font-size:12px;color:var(--muted);margin:4px 0 8px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+.chart{position:relative;height:230px}
+.chart svg{display:block;width:100%;height:100%;overflow:visible}
+.chart .grid-line{stroke:var(--separator);stroke-width:1}
+.chart .axis{fill:var(--muted);font-size:11px}
+.chart .hit{fill:transparent;cursor:crosshair}
+.chart .hit:hover{fill:var(--fill-2)}
+.chart .empty{fill:var(--muted);font-size:13px}
+.tip{position:absolute;pointer-events:none;background:var(--raised);border-radius:10px;
+  box-shadow:0 8px 24px rgba(0,0,0,.5);padding:8px 10px;font-size:12px;min-width:150px;display:none;z-index:2}
+.tip .t{color:var(--muted);margin-bottom:4px}
+.tip .row{display:flex;align-items:center;gap:8px;line-height:1.7}
+.tip .row b{min-width:62px;text-align:right;font-variant-numeric:tabular-nums}
+.tip .row s{display:inline-block;width:12px;height:2px;border-radius:1px;text-decoration:none}
+.tip .sum{border-top:.5px solid var(--separator);margin-top:4px;padding-top:4px}
+</style>
+
+<div class="head">
+  <h1>Сводка</h1>
+  <form method="post" action="{{ A }}/sync"><button class="secondary">Обновить прайс сейчас</button></form>
+</div>
+
+<div class="grid" style="margin-top:14px">
+  {% for name, p in providers.items() %}
+  {% set on = name in enabled_providers %}
+  <div class="card stat provider {{ 'on' if on else 'off' }}" title="{{ 'Включена' if on else 'Выключена' }} — меняется в «Настройках»">
+    <div class="muted">Баланс {{ p.title }}</div>
+    <div class="v {{ 'bad' if balances[name] in ('нет данных', '$0.00') }}">{{ balances[name] }}</div>
+    <div class="muted">Предложений: {{ stats.get(name, 0) }}</div>
+    <div class="muted" style="font-size:12px">Прайс: {% set ls = last_sync.get(name) %}{% if ls %}{{ ls[1]|msk('%d.%m %H:%M') }} — {{ ls[0] }}{% else %}ещё не загружен{% endif %}</div>
+  </div>
+  {% endfor %}
+  <div class="card stat"><div class="muted">Пользователей</div><div class="v">{{ users }}</div></div>
+  <div class="card stat"><div class="muted">Активных активаций</div><div class="v">{{ active_orders }}</div></div>
+  <div class="card stat"><div class="muted">Курс USD (с надбавкой)</div><div class="v">{{ '%.2f' % rate }} ₽</div></div>
+</div>
+
+<div class="head" style="margin-top:8px">
+  <h2 style="margin:0">Продажи</h2>
+  <div class="filters" style="margin:0">
+    {% for d in periods %}<a href="?days={{ d }}" class="{{ 'on' if a.days == d }}">{{ d }} дней</a>{% endfor %}
+  </div>
+</div>
+<p class="muted" style="margin:6px 0 12px;font-size:12px">Продажа — активация, по которой пришла SMS: остальные деньги
+  возвращены пользователю. Прибыль — выручка минус закупка у площадки по курсу на момент покупки.
+  {% if since %}Считаются только заказы с начала учёта прибыли — {{ since|msk }} ({{ tz_label() }}).{% endif %}</p>
+
+{% set t = a.total %}
+<div class="grid">
+  <div class="card stat kpi"><div class="muted">Выручка</div><div class="v">{{ t.revenue|rub }}</div>
+    <div class="d">{{ delta(a.deltas.revenue) }}</div></div>
+  <div class="card stat kpi"><div class="muted">Прибыль</div><div class="v">{{ t.profit|rub }}</div>
+    <div class="d">{{ delta(a.deltas.profit) }}</div>
+    <div class="d muted">маржа {{ '%.0f%%' % t.margin if t.margin is not none else '—' }}</div></div>
+  <div class="card stat kpi"><div class="muted">Успешных активаций</div><div class="v">{{ t.ok }}</div>
+    <div class="d">{{ delta(a.deltas.ok) }}</div>
+    <div class="d muted">из {{ t.started }} запущенных{% if t.rate is not none %} · {{ '%.0f' % t.rate }}% с кодом{% endif %}</div></div>
+  <div class="card stat kpi"><div class="muted">Средний чек</div><div class="v">{{ t.avg|rub if t.avg is not none else '—' }}</div>
+    <div class="d">{{ delta(a.deltas.avg) }}</div></div>
+  {% if a.invites %}
+  <div class="card stat kpi" title="Начислено пользователям на баланс бота за успешные активации приглашённых ими друзей — наш расход">
+    <div class="muted">За приглашения</div><div class="v">{{ a.invites|rub }}</div>
+    <div class="d muted">на балансы пригласивших</div></div>
+  {% endif %}
+  {% if a.lost %}
+  <div class="card stat kpi" style="background:var(--red-soft)"
+    title="Номера, которые площадка продала дороже лимита (их не отдали пользователю) и так и не дала отменить за 30 минут — их закупка не вернулась">
+    <div class="muted">Потеряно на отменах</div><div class="v bad">{{ a.lost.rub|rub }}</div>
+    <div class="d muted">${{ '%.2f' % a.lost.usd }} · не отменено номеров: {{ a.lost.n }}</div></div>
+  {% endif %}
+</div>
+
+<div class="two">
+  <div class="card chart-card">
+    <h3>Деньги по дням</h3>
+    <div class="legend"><span><i style="background:var(--accent)"></i>Прибыль</span><span><i style="background:var(--orange)"></i>Закупка</span>
+      <span>· высота столбца — выручка</span></div>
+    <div class="chart" id="money"></div>
+  </div>
+  <div class="card chart-card">
+    <h3>Активации по дням</h3>
+    <div class="legend"><span><i style="background:var(--accent)"></i>С кодом</span><span><i style="background:var(--orange)"></i>Без кода</span>
+      <span>· высота столбца — все запущенные</span></div>
+    <div class="chart" id="acts"></div>
+  </div>
+</div>
+<details style="margin:10px 0 16px"><summary class="muted" style="cursor:pointer">Таблица по дням</summary>
+  <div class="tablewrap" style="margin-top:8px"><table>
+    <tr><th>День</th><th class="num">Выручка</th><th class="num">Закупка</th><th class="num">Прибыль</th><th class="num">С кодом</th><th class="num">Без кода</th></tr>
+    {% for d in a.daily|reverse %}
+    <tr><td>{{ d.label }}</td><td class="num">{{ d.revenue|rub }}</td><td class="num">{{ d.cost|rub }}</td>
+      <td class="num">{{ d.profit|rub }}</td><td class="num">{{ d.ok }}</td><td class="num">{{ d.failed }}</td></tr>
+    {% endfor %}
+  </table></div>
+</details>
+
+<div class="two">
+  {{ top_table("Топ сервисов по прибыли", a.top_services) }}
+  {{ top_table("Топ стран по прибыли", a.top_countries) }}
+</div>
+
+<script>
+(() => {
+const DAILY = {{ a.daily|tojson }};
+const css = getComputedStyle(document.documentElement);  // цвета — из палитры панели
+const BLUE = css.getPropertyValue("--accent").trim(), ORANGE = css.getPropertyValue("--orange").trim();
+const rub = v => v.toLocaleString("ru-RU", {maximumFractionDigits: v % 1 ? 2 : 0}) + " ₽";
+const pcs = v => v.toLocaleString("ru-RU");
+
+function niceMax(v, integer) {
+  if (v <= 0) return integer ? 4 : 1;
+  const raw = v / 4, p = 10 ** Math.floor(Math.log10(raw));
+  let step = [1, 2, 5, 10].map(m => m * p).find(s => s >= raw);
+  if (integer) step = Math.max(1, Math.ceil(step));  // деления штук — только целые
+  return step * 4;
+}
+
+// Столбцы из сегментов: series[0] — снизу. 2px зазор между сегментами, скругление 4px сверху.
+function columns(el, {series, total, fmt, tipRows, empty, integer = false}) {
+  const tip = document.createElement("div");
+  tip.className = "tip";
+  function draw() {
+    el.innerHTML = ""; el.appendChild(tip);
+    const W = el.clientWidth, H = el.clientHeight, L = 52, B = 22, T = 6;
+    if (W < 100 || H < 60) return;  // блок ещё не на экране — нарисуем, когда появится размер
+    const pw = W - L - 4, ph = H - B - T, n = DAILY.length, band = pw / n;
+    const bw = Math.max(2, Math.min(24, band * 0.7));
+    const max = niceMax(Math.max(...DAILY.map(total)), integer);
+    const y = v => T + ph - v / max * ph;
+    const ns = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(ns, "svg");
+    const add = (tag, attrs, parent = svg) => {
+      const e = document.createElementNS(ns, tag);
+      for (const k in attrs) e.setAttribute(k, attrs[k]);
+      parent.appendChild(e); return e;
+    };
+    for (let i = 0; i <= 4; i++) {
+      const v = max * i / 4, yy = y(v);
+      add("line", {x1: L, x2: W - 4, y1: yy, y2: yy, class: "grid-line"});
+      add("text", {x: L - 8, y: yy + 4, "text-anchor": "end", class: "axis"}).textContent = fmt(v);
+    }
+    const every = Math.max(1, Math.ceil(n * 46 / pw));
+    DAILY.forEach((d, i) => {
+      const cx = L + band * i + band / 2, x = cx - bw / 2;
+      let base = 0;
+      const parts = series.map(s => ({s, v: Math.max(0, s.value(d))})).filter(p => p.v > 0);
+      parts.forEach((p, k) => {
+        const top = y(base + p.v), bottom = y(base) - (k ? 2 : 0);  // 2px зазор над нижним сегментом
+        const h = bottom - top;
+        base += p.v;
+        if (h <= 0) return;
+        const r = k === parts.length - 1 ? Math.min(4, h, bw / 2) : 0;
+        add("path", {fill: p.s.color, d: `M${x},${bottom} V${top + r} Q${x},${top} ${x + r},${top} ` +
+          `H${x + bw - r} Q${x + bw},${top} ${x + bw},${top + r} V${bottom} Z`});
+      });
+      if ((n - 1 - i) % every === 0)
+        add("text", {x: cx, y: H - 6, "text-anchor": "middle", class: "axis"}).textContent = d.label;
+      const hit = add("rect", {x: L + band * i, y: T, width: band, height: ph, class: "hit", tabindex: 0});
+      const show = () => {
+        tip.replaceChildren();
+        const head = document.createElement("div"); head.className = "t"; head.textContent = d.label;
+        tip.appendChild(head);
+        tipRows(d).forEach(([val, name, color, sum]) => {
+          const row = document.createElement("div"); row.className = "row" + (sum ? " sum" : "");
+          const key = document.createElement("s"); key.style.background = color || "transparent";
+          const b = document.createElement("b"); b.textContent = val;
+          const span = document.createElement("span"); span.className = "muted"; span.textContent = name;
+          row.append(key, b, span); tip.appendChild(row);
+        });
+        tip.style.display = "block";
+        const left = Math.min(Math.max(cx - tip.offsetWidth / 2, 0), W - tip.offsetWidth);
+        tip.style.left = left + "px";
+        tip.style.top = Math.max(0, y(total(d)) - tip.offsetHeight - 10) + "px";
+      };
+      hit.addEventListener("pointerenter", show);
+      hit.addEventListener("focus", show);
+      hit.addEventListener("pointerleave", () => tip.style.display = "none");
+      hit.addEventListener("blur", () => tip.style.display = "none");
+    });
+    if (!DAILY.some(d => total(d) > 0))
+      add("text", {x: L + pw / 2, y: T + ph / 2, "text-anchor": "middle", class: "empty"}).textContent = empty;
+    el.insertBefore(svg, tip);
+  }
+  draw();
+  new ResizeObserver(draw).observe(el);
+}
+
+columns(document.getElementById("money"), {
+  series: [{value: d => Math.min(d.cost, d.revenue), color: ORANGE}, {value: d => d.profit, color: BLUE}],
+  total: d => d.revenue, fmt: v => v >= 1000 ? (v / 1000).toLocaleString("ru-RU") + "к" : String(v),
+  tipRows: d => [[rub(d.profit), "прибыль", BLUE], [rub(d.cost), "закупка", ORANGE], [rub(d.revenue), "выручка", null, true]],
+  empty: "Продаж за период нет",
+});
+columns(document.getElementById("acts"), {
+  series: [{value: d => d.ok, color: BLUE}, {value: d => d.failed, color: ORANGE}],
+  total: d => d.ok + d.failed, fmt: v => pcs(v),
+  tipRows: d => [[pcs(d.ok), "с кодом", BLUE], [pcs(d.failed), "без кода", ORANGE], [pcs(d.ok + d.failed), "всего", null, true]],
+  empty: "Активаций за период нет", integer: true,
+});
+})();
+</script>
+{% endblock %}

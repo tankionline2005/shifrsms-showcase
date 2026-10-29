@@ -1,0 +1,53 @@
+{# Карточка активации: страница заказа подгружает её заново раз в несколько секунд, пока активация идёт #}
+{% set st = {'waiting': ('wait', 'st_waiting'), 'received': ('ok', 'st_received'), 'completed': ('acc', 'st_completed'),
+             'cancelled': ('off', 'st_cancelled'), 'replaced': ('off', 'st_replaced'), 'expired': ('off', 'st_expired')}[o.status] %}
+<div class="oc-head">
+  {{ logo(o.service) }}<div class="grow"><div class="small muted">{{ tr('order_title', id=o.id) }}</div><h1>{{ o.service.name }}</h1>
+    <div class="muted">{{ ctitle(o.country) }}</div></div>
+  <span class="badge {{ st[0] }}">{{ tr(st[1]) }}</span>
+</div>
+
+<div class="oc-phone">
+  <div class="small muted">{{ tr('number') }}</div>
+  <div class="row"><span class="mono phone">+{{ o.phone.lstrip('+') }}</span>
+    <button class="copy" type="button" data-copy="+{{ o.phone.lstrip('+') }}" title="{{ tr('copy') }}"><svg><use href="#i-copy"/></svg></button>
+    <button class="copy" type="button" data-copy="{{ o.phone.lstrip('+') }}" title="{{ o.phone.lstrip('+') }}"><span class="small mono">123</span></button></div>
+</div>
+
+{% for m in o.messages %}
+<div class="oc-sms">
+  <div class="small muted">{{ tr('sms_code') }}{% if o.messages|length > 1 %} {{ loop.index }}{% endif %} · <time data-utc="{{ m.received_at.isoformat() }}" data-fmt="time"></time></div>
+  {% if m.code %}<div class="row"><span class="mono code">{{ m.code }}</span>
+    <button class="copy" type="button" data-copy="{{ m.code }}" title="{{ tr('copy') }}"><svg><use href="#i-copy"/></svg></button></div>{% endif %}
+  <div class="small muted text">{{ m.text }}</div>
+</div>
+{% endfor %}
+{% if note_sms %}<div class="notice info">{{ note_sms }}</div>{% endif %}
+
+{% if o.status == 'waiting' %}
+<p class="muted small">{{ tr('waiting_sms') }}</p>
+{% elif o.status == 'received' %}
+<p class="muted small">{{ tr('received_hint') }}</p>
+{% elif o.status == 'cancelled' %}<p class="muted small">{{ tr('closed_cancelled', price=o.price|rub) }}</p>
+{% elif o.status == 'replaced' %}<p class="muted small">{{ tr('closed_replaced', price=o.price|rub) }}</p>
+{% elif o.status == 'expired' %}<p class="muted small">{{ tr('closed_expired', price=o.price|rub) }}</p>
+{% else %}<p class="muted small">{{ tr('closed_completed') }}</p>{% endif %}
+{% if note and o.status == 'waiting' %}<div class="notice info">{{ note }}</div>{% endif %}
+
+<dl class="kv">
+  <dt>{{ tr('price') }}</dt><dd>{{ o.price|rub }}</dd>
+  {% if o.is_active %}<dt>{{ tr('expires_in') }}</dt><dd class="mono" data-countdown="{{ o.expires_at.isoformat() }}">—</dd>{% endif %}
+  {% if o.status == 'waiting' %}<dt>{{ tr('cancel_in') }}</dt><dd class="mono" data-countdown="{{ o.cancel_available_at.isoformat() }}" data-done-hide>—</dd>{% endif %}
+</dl>
+
+<div class="oc-actions">
+  {% macro act(name, label, cls='sec') %}<form method="post" action="{{ P }}/orders/{{ o.id }}/{{ name }}" class="once">
+    <input type="hidden" name="csrf" value="{{ csrf }}"><button class="btn {{ cls }}" type="submit">{{ label }}</button></form>{% endmacro %}
+  {% if o.status == 'waiting' %}
+    {{ act('replace', tr('btn_another_number'), '') }}{{ act('cancel', tr('btn_cancel'), 'danger') }}{{ act('refresh', tr('btn_refresh'), 'ghost') }}
+  {% elif o.status == 'received' %}
+    {{ act('finish', tr('btn_finish'), '') }}{% if o.can_get_another or o.provider == 'smspool' %}{{ act('another', tr('btn_another_sms')) }}{% endif %}
+  {% else %}
+    {{ act('again', tr('btn_again'), '') }}
+  {% endif %}
+</div>

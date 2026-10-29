@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+.group-row td{background:var(--bg);font-weight:600;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.03em}
+#more-state{text-align:center;padding:14px;font-size:13px}
+.group-row.toggle td{cursor:pointer}
+input:placeholder-shown + .merge-go{display:none}  /* «→» — только когда ввели ID */
+.group-row.toggle:hover td{color:var(--text)}
+</style>
+<h1>Сервисы</h1>
+<div class="filters">
+  <form class="inline" method="get">
+    <input type="text" name="q" value="{{ q }}" placeholder="Поиск по названию">
+    <button>Найти</button>
+    {% if q %}<a href="{{ A }}/services">Сбросить</a>{% endif %}
+  </form>
+  <span class="muted">Найдено: {{ total }}</span>
+</div>
+<p class="muted">Порядок популярных удобнее менять на вкладке <a href="{{ A }}/popular">«Популярные»</a>
+  перетаскиванием (или полем «Сорт.» здесь). Если один и тот же сервис пришёл с площадок под разными названиями —
+  объедините их: укажите ID сервиса, в который перенести коды.</p>
+<div class="tablewrap">
+<table>
+  <thead>
+  <tr><th>ID</th><th>Название / сорт. / флаги</th><th>Коды площадок</th><th>Стран</th><th title="Доля во всех активациях за {{ pop_days }} дней">Популярность</th><th>От</th><th>Объединить</th></tr>
+  </thead>
+  {% if popular %}
+  <tbody>
+    <tr class="group-row"><td colspan="7">Популярные — в порядке показа в боте · {{ popular|length }}</td></tr>
+    {% with rows = popular %}{% include "_service_rows.html" %}{% endwith %}
+  </tbody>
+  {% endif %}
+  {% if hidden_total %}
+  <tbody id="hidden">
+    <tr class="group-row toggle" id="hidden-head" tabindex="0">
+      <td colspan="7"><span id="hidden-arrow">{{ '▾' if hidden else '▸' }}</span> Скрытые · {{ hidden_total }}
+        <span id="hidden-hint" style="text-transform:none">— нажмите, чтобы {{ 'свернуть' if hidden else 'показать' }}</span></td></tr>
+    {% with rows = hidden %}{% include "_service_rows.html" %}{% endwith %}
+  </tbody>
+  {% endif %}
+  {% if others %}
+  <tbody id="others">
+    <tr class="group-row"><td colspan="7">Остальные — сначала самые покупаемые</td></tr>
+    {% with rows = others %}{% include "_service_rows.html" %}{% endwith %}
+  </tbody>
+  {% endif %}
+</table>
+</div>
+<div id="more-state" class="muted"></div>
+
+<script>
+// скрытые: свёрнуты, при первом раскрытии загружаются, дальше клик только сворачивает/разворачивает
+(() => {
+  const head = document.getElementById("hidden-head");
+  if (!head) return;
+  const body = document.getElementById("hidden"), arrow = document.getElementById("hidden-arrow"),
+        hint = document.getElementById("hidden-hint");
+  let loaded = {{ 'true' if hidden else 'false' }}, open = loaded;  // при поиске уже загружены и открыты
+  const rows = () => [...body.rows].filter(r => r !== head);
+  async function toggle() {
+    if (!loaded) {
+      hint.textContent = "— загружаем…";
+      try {
+        const r = await fetch(`{{ A }}/services/hidden?q=${encodeURIComponent({{ q|tojson }})}`, {credentials: "same-origin"});
+        if (!r.ok) throw new Error(r.status);
+        body.insertAdjacentHTML("beforeend", await r.text());
+        loaded = true;
+      } catch (e) { hint.textContent = "— не удалось загрузить: " + e; return; }
+    }
+    open = !open;
+    rows().forEach(r => r.hidden = !open);
+    arrow.textContent = open ? "▾" : "▸";
+    hint.textContent = open ? "— нажмите, чтобы свернуть" : "— нажмите, чтобы показать";
+  }
+  head.addEventListener("click", toggle);
+  head.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); } });
+})();
+
+// остальные сервисы подгружаются по {{ step }}, когда долистали до конца таблицы
+(() => {
+  const total = {{ others_total }}, step = {{ step }};
+  let shown = {{ shown }}, loading = false;
+  const state = document.getElementById("more-state");
+  const body = document.getElementById("others");
+  const left = () => Math.max(0, total - shown);
+  const label = () => state.textContent = left() ? `Показано ${Math.min(shown, total)} из ${total} — листайте ниже, чтобы загрузить ещё` : "";
+  label();
+  if (!body || !left()) return;
+  const io = new IntersectionObserver(async ([e]) => {
+    if (!e.isIntersecting || loading || !left()) return;
+    loading = true; state.textContent = "Загружаем…";
+    try {
+      const r = await fetch(`{{ A }}/services/more?offset=${shown}&q=${encodeURIComponent({{ q|tojson }})}`,
+                            {credentials: "same-origin"});
+      if (!r.ok) throw new Error(r.status);
+      body.insertAdjacentHTML("beforeend", await r.text());
+      shown += step;
+    } catch (err) { state.textContent = "Не удалось загрузить: " + err; loading = false; return; }
+    loading = false; label();
+    if (!left()) io.disconnect();
+  }, {rootMargin: "400px"});
+  io.observe(state);
+})();
+</script>
+{% endblock %}

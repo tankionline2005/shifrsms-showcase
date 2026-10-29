@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% block content %}
+{% import "_pic.html" as pic %}
+<style>
+.editor{display:grid;grid-template-columns:1fr 220px;gap:16px;align-items:start}
+@media (max-width:760px){.editor{grid-template-columns:1fr}}
+.editor textarea{width:100%;min-height:150px;resize:vertical}
+.counter{font-size:12px;margin-top:4px}
+.editor .pic img{max-height:220px}
+.editor .pic-empty{min-height:120px;display:flex;align-items:center;justify-content:center;padding:0}
+.segments{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:8px;margin:14px 0}
+.seg{border:1px solid var(--separator);border-radius:12px;background:var(--card);padding:8px 10px;cursor:pointer;display:flex;gap:8px;align-items:flex-start}
+.seg:has(input:checked){border-color:var(--accent);background:var(--accent-soft)}
+.seg small{display:block;color:var(--muted)}
+.seg .n{margin-left:auto;font-weight:600;font-variant-numeric:tabular-nums}
+.bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.test{display:flex;gap:6px;align-items:center;margin-left:auto}
+#test-result{font-size:13px}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+</style>
+
+<h1>Рассылки</h1>
+{% if error %}<div class="notice bad">{{ error }}</div>{% endif %}
+
+<div class="card">
+  <form id="bform" method="post" action="{{ A }}/broadcasts">
+    <h2 style="margin-top:0">Новая рассылка</h2>
+    {% if source %}<p class="muted" style="margin-top:-6px">Текст, фото и группа взяты из
+      <a href="{{ A }}/broadcasts/{{ source.id }}">рассылки от {{ source.created_at|msk }}</a> — можно поправить перед отправкой.</p>{% endif %}
+    <div class="editor">
+      <div>
+        <textarea name="text" id="text" placeholder="Текст рассылки" data-rich>{{ source.text if source else '' }}</textarea>
+        <div class="counter muted" id="counter"></div>
+        <div class="muted" style="font-size:12px;margin-top:4px">Оформление — кнопками над текстом: выделите текст и нажмите
+          нужную. Предпросмотр ссылок отключён.</div>
+      </div>
+      <div>
+        {% set keep = source.id if source and source.photo else '' %}
+        {% set base = A ~ "/broadcasts/" ~ keep ~ "/photo" %}
+        {{ pic.field(A ~ "/broadcasts/photo-draft", thumb=(base ~ "?size=thumb&v=" ~ (source.thumb|ver)) if keep else "",
+                     full=(base ~ "?v=" ~ (source.thumb|ver)) if keep else "", remove="local", token=True) }}
+        <input type="hidden" name="photo_from" id="photo_from" value="{{ keep }}">
+      </div>
+    </div>
+
+    <h3 style="margin:18px 0 0">Кому отправить</h3>
+    <div class="segments">
+      {% for key, seg in segments.items() %}
+      <label class="seg"><input type="radio" name="segment" value="{{ key }}" data-n="{{ counts[key] }}"
+        {{ 'checked' if (source and source.segment == key) or (not (source and source.segment in segments) and loop.first) }}>
+        <span>{{ seg[0] }}<small>{{ seg[1] }}</small></span><span class="n">{{ counts[key] }}</span></label>
+      {% endfor %}
+    </div>
+    <p class="muted" style="font-size:12px;margin-top:-4px">Заблокированные вами и те, кто сам заблокировал бота, не получают
+      рассылки. Пополнение — ваши начисления в плюс на странице пользователя (пока платежи не подключены).</p>
+
+    <div class="bar">
+      <button id="send">Отправить</button>
+      <div class="test">
+        <input type="text" name="test_username" value="{{ test_username }}" placeholder="ваш @username" style="width:160px"
+          title="Ваш username в Telegram. Перед проверкой хотя бы раз напишите нашему боту /start">
+        <button type="button" class="secondary" id="test">Отправить себе для проверки</button>
+      </div>
+    </div>
+    <div id="test-result"></div>
+  </form>
+</div>
+
+<h2>История</h2>
+<div class="tablewrap"><table>
+  <thead><tr><th>Дата ({{ tz_label() }})</th><th>Кому</th><th>Сообщение</th><th>Статус</th><th class="num">Доставлено</th><th class="num">Не дошло</th><th class="num">Заблокировали бота</th><th></th></tr></thead>
+  <tbody data-lazy data-step="{{ step }}" data-count="{{ items|length }}">
+  {% include "_broadcast_rows.html" %}
+  {% if not items %}<tr><td colspan="8" class="muted">Рассылок ещё не было</td></tr>{% endif %}
+  </tbody>
+</table></div>
+{% include "_lazy.html" %}
+
+{% include "_rich_editor.html" %}
+{{ pic.assets() }}
+<script>
+(() => {
+  const form = document.getElementById("bform"), text = document.getElementById("text"), counter = document.getElementById("counter");
+  const pic = form.querySelector(".pic"), result = document.getElementById("test-result");
+  const from = document.getElementById("photo_from");  // фото повторяемой рассылки
+  const hasPhoto = () => pic.classList.contains("has");
+  const limit = () => hasPhoto() ? {{ max_caption }} : {{ max_text }};
+  const update = () => {
+    const n = RichEditor.len(text), l = limit();
+    counter.textContent = `${n} / ${l}` + (hasPhoto() ? " — подпись к фото" : "");
+    counter.className = "counter " + (n > l ? "bad" : "muted");
+  };
+  // загрузили новое фото или убрали — фото прежней рассылки больше не нужно
+  form.addEventListener("pic-change", () => { from.value = ""; update(); });
+  text.addEventListener("input", update);
+  update();
+
+  const valid = () => {
+    if (form.querySelector(".pic-field.busy")) { alert("Дождитесь, пока фото загрузится."); return false; }
+    if (!text.value.trim() && !hasPhoto()) { alert("Добавьте текст или фото."); return false; }
+    if (RichEditor.len(text) > limit()) { alert("Текст слишком длинный — см. счётчик под полем."); return false; }
+    return true;
+  };
+  form.addEventListener("submit", e => {
+    const seg = form.querySelector("input[name=segment]:checked");
+    const title = seg.closest(".seg").querySelector("span").firstChild.textContent.trim();
+    if (!valid() || !confirm(`Отправить рассылку группе «${title}» — ${seg.dataset.n} чел.?\n\nОтменить можно в течение 48 часов: отправленные сообщения удалятся.`))
+      e.preventDefault();
+  });
+  document.getElementById("test").addEventListener("click", async () => {
+    if (!valid()) return;
+    result.className = "muted"; result.textContent = "Отправляем…";
+    try {
+      const r = await fetch("{{ A }}/broadcasts/test", {method: "POST", body: new FormData(form), credentials: "same-origin"});
+      const d = await r.json();
+      result.className = d.ok ? "ok" : "bad"; result.textContent = d.message;
+    } catch (err) { result.className = "bad"; result.textContent = "Не удалось: " + err; }
+  });
+})();
+</script>
+{% endblock %}

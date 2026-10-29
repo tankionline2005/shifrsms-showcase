@@ -1,0 +1,26 @@
+{# «Вывести» → история выводов #}
+{% import "_paged.html" as pg %}
+      <div class="tablewrap"><table>
+        <tr><th>Дата ({{ tz_label() }})</th><th class="num">Сумма</th><th class="num">Комиссия</th><th class="num">Придёт</th><th>Куда</th><th>Статус</th></tr>
+        {% for p in t.rows %}
+        <tr>
+          <td>{{ p.created_at|msk }}{% if p.auto %}<br><span class="muted" style="font-size:12px">автовывод</span>{% endif %}</td>
+          <td class="num">{{ p.amount_usd|usd }}</td>
+          <td class="num muted">{{ p.fee_usd|usd }}</td>
+          <td class="num">{{ p.send_usd|usd }}</td>
+          <td class="addr">{{ p.address[:6] }}…{{ p.address[-4:] }}</td>
+          <td><span class="badge {{ p.status }}">{{ statuses[p.status] }}</span>
+            {% if p.txid and p.status in ('signed', 'done', 'failed') %}<br><a href="{{ tx_url(p.txid) }}" target="_blank" rel="noopener" style="font-size:12px">в сети ↗</a>{% endif %}
+            {% if p.note and p.status in ('queued', 'signed', 'failed') %}<br><span class="muted" style="font-size:12px">{{ p.note }}</span>{% endif %}
+            {% if p.status == 'queued' and not p.txid %}
+            <form method="post" action="{{ A }}/withdraw/{{ p.id }}/cancel" style="margin-top:4px"
+                  onsubmit="return confirm('Отменить вывод? Деньги вернутся на баланс.')">
+              <button class="danger" style="padding:4px 10px;font-size:13px">Отменить</button></form>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="muted">{{ 'Ничего не найдено' if t.q else 'Выводов ещё не было' }}</td></tr>
+        {% endfor %}
+      </table></div>
+{{ pg.pager(t) }}

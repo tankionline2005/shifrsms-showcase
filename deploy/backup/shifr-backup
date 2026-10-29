@@ -1,0 +1,50 @@
+#!/bin/bash
+# Резервная копия Shifr SMS в Google Drive (папка shifrsms-backup): база (pg_dump), .env, docker-compose.yml и Caddyfile
+# в одном tar, зашифрованном age. На сервере только открытый ключ — расшифровать можно только закрытым ключом владельца.
+# Хранится KEEP последних копий, старые удаляются (мимо корзины) — только после успешной загрузки новой.
+# Ошибка — уведомление в Telegram тем, кто указан в «Настройках» (python -m app.cli notify).
+# Ставится в /usr/local/sbin/shifr-backup, запускается таймером shifr-backup.timer; восстановление — docs/backup.md.
+set -euo pipefail
+
+APP=/opt/shifr
+CONF=/etc/shifr-backup
+REMOTE=gdrive:shifrsms-backup
+KEEP=14
+RCLONE=(rclone --config "$CONF/rclone.conf" --drive-use-trash=false)
+
+cd "$APP"
+TMP=$(mktemp -d)
+step="подготовка"
+fail() {
+    local code=$?
+    echo "ОШИБКА на шаге «$step» (код $code)" >&2
+    docker compose exec -T app python -m app.cli notify \
+        "⚠️ Резервная копия не сделана: ошибка на шаге «$step». Подробности на сервере: journalctl -u shifr-backup" \
+        >/dev/null 2>&1 || echo "уведомление не отправлено" >&2
+    rm -rf "$TMP"
+    exit "$code"
+}
+trap fail ERR
+trap 'rm -rf "$TMP"' EXIT
+
+NAME="shifr_$(date -u +%Y-%m-%d_%H%M)UTC.tar.age"
+
+step="копия базы"
+docker compose exec -T db pg_dump -U shifr -d shifr -Fc > "$TMP/db.dump"
+docker compose exec -T db pg_restore -l < "$TMP/db.dump" > /dev/null  # копия читается целиком
+[ "$(stat -c %s "$TMP/db.dump")" -gt 1000000 ] || { echo "копия базы подозрительно мала" >&2; false; }
+
+step="шифрование"
+cp .env "$TMP/env"; cp docker-compose.yml Caddyfile "$TMP/"
+tar -C "$TMP" -cf - db.dump env docker-compose.yml Caddyfile | age -R "$CONF/recipient.txt" > "$TMP/$NAME"
+
+step="загрузка в Google Drive"
+"${RCLONE[@]}" copyto "$TMP/$NAME" "$REMOTE/$NAME"
+remote_size=$("${RCLONE[@]}" lsf --format s "$REMOTE/$NAME")
+[ "$remote_size" = "$(stat -c %s "$TMP/$NAME")" ] || { echo "размер в облаке не совпал" >&2; false; }
+
+step="удаление старых копий"
+"${RCLONE[@]}" lsf --files-only "$REMOTE" | grep -E '^shifr_.*\.tar\.age$' | sort | head -n -"$KEEP" |
+    while read -r old; do "${RCLONE[@]}" deletefile "$REMOTE/$old"; echo "удалена $old"; done
+
+echo "готово: $NAME ($(numfmt --to=iec "$remote_size")), в облаке копий: $("${RCLONE[@]}" lsf --files-only "$REMOTE" | grep -cE '^shifr_.*\.tar\.age$')"

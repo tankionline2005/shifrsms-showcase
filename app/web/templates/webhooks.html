@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Вебхуки</h1>
+<div class="card">
+  <p>Grizzly SMS: <code>{{ config.grizzly_webhook_url }}</code></p>
+  <p>SMSPool: <code>{{ config.smspool_webhook_url }}</code></p>
+  <p>Onlinesim: <code>{{ config.onlinesim_webhook_url }}</code> — указать в профиле Onlinesim, раздел API.
+    У 5SIM вебхуков нет: статусы бот проверяет сам.</p>
+  <p>Platega (платежи): <code>{{ config.public_url }}/webhooks/platega</code> — указать в кабинете Platega:
+    «Настройки → Callback URLs». Запросы без наших MerchantId и ключа в заголовках отклоняются.</p>
+  <p class="muted">Кроме вебхуков бот периодически опрашивает площадки сам (интервал — в настройках), так что коды дойдут, даже если вебхук потерялся.
+    Неоплаченные счета Platega бот проверяет раз в минуту.</p>
+</div>
+<h2>Последние входящие запросы</h2>
+<div class="tablewrap">
+<table>
+  <thead><tr><th>Время ({{ tz_label() }})</th><th>Площадка</th><th>Результат</th><th>Данные</th></tr></thead>
+  <tbody data-lazy data-step="{{ step }}" data-count="{{ rows|length }}">
+  {% include "_webhook_rows.html" %}
+  {% if not rows %}<tr><td colspan="4" class="muted">Запросов ещё не было</td></tr>{% endif %}
+  </tbody>
+</table>
+</div>
+{% include "_lazy.html" %}
+{% endblock %}

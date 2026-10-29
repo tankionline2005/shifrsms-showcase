@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Страны</h1>
+<div class="filters">
+  <form class="inline" method="get">
+    <input type="text" name="q" value="{{ q }}" placeholder="Поиск">
+    <button>Найти</button>
+  </form>
+</div>
+<div class="tablewrap">
+<table>
+  <tr><th>ID</th><th>Ключ</th><th>Название / скрыть</th></tr>
+  {% for c in countries %}
+  <tr>
+    <td>{{ c.id }}</td>
+    <td>{{ c.flag }} <code>{{ c.key }}</code></td>
+    <td>
+      <form class="inline" method="post" action="{{ A }}/countries/{{ c.id }}">
+        <input type="text" name="name" value="{{ c.name }}" style="width:260px">
+        <label><input type="checkbox" class="switch" name="is_hidden" {{ 'checked' if c.is_hidden }}> скрыта</label>
+        {% if c.key[:2] in blocked %}<span class="bad" title="Страна в списке «Запрещённые страны» в Настройках">запрещена</span>{% endif %}
+        <button class="secondary">OK</button>
+      </form>
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+</div>
+{% endblock %}

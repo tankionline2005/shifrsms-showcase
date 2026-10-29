@@ -1,0 +1,3 @@
+{% for r in rows %}
+  <tr><td>{{ r.created_at|msk }}</td><td>{{ r.provider }}</td><td>{{ r.result }}</td><td><code style="font-size:12px">{{ r.payload[:1000] }}</code></td></tr>
+{% endfor %}

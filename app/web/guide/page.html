@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<meta name="color-scheme" content="light dark">
+<title>Руководство поддержки Shifr SMS</title>
+<style>
+/* Справочник: оглавление слева (на телефоне — свёрнуто сверху), текст справа, поиск по пунктам. Палитра — как в панели Shifr (iOS). */
+:root{
+  --bg:#f2f2f7;--card:#ffffff;--text:#1c1c1e;--text-2:#6c6c70;--sep:rgba(60,60,67,.16);
+  --accent:#007aff;--accent-soft:rgba(0,122,255,.10);--green:#248a3d;--code:rgba(118,118,128,.12);
+  --mark:rgba(255,204,0,.35);
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --mono:"SF Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#000000;--card:#1c1c1e;--text:#f5f5f7;--text-2:#98989f;--sep:rgba(84,84,88,.55);
+  --accent:#0a84ff;--accent-soft:rgba(10,132,255,.18);--green:#30d158;--code:rgba(118,118,128,.24);
+  --mark:rgba(255,214,10,.30);color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#000000;--card:#1c1c1e;--text:#f5f5f7;--text-2:#98989f;--sep:rgba(84,84,88,.55);
+  --accent:#0a84ff;--accent-soft:rgba(10,132,255,.18);--green:#30d158;--code:rgba(118,118,128,.24);
+  --mark:rgba(255,214,10,.30);color-scheme:dark}
+
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.6 var(--font);-webkit-font-smoothing:antialiased}
+img{max-width:100%}
+[hidden]{display:none!important}
+.wrap{max-width:1180px;margin:0 auto;padding-inline:20px;padding-block:28px 64px}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+a:focus-visible,button:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+
+header.top{display:grid;gap:6px;margin-bottom:24px}
+.eyebrow{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-2);font-weight:600}
+h1{font-size:clamp(28px,4.4vw,40px);line-height:1.15;letter-spacing:-.02em;margin:0;text-wrap:balance}
+header.top p{color:var(--text-2);margin:0;max-width:66ch}
+
+.layout{display:grid;grid-template-columns:260px minmax(0,1fr);gap:40px;align-items:start}
+nav.toc{position:sticky;top:calc(env(safe-area-inset-top,0px) + 16px);max-height:calc(100vh - 32px);overflow:auto;font-size:14px;line-height:1.4;padding-right:4px}
+nav.toc ol,nav.toc ul{list-style:none;margin:0;padding:0}
+nav.toc>details>ol>li{margin-bottom:6px}
+nav.toc a{display:flex;gap:8px;color:var(--text);padding:5px 8px;border-radius:8px}
+nav.toc a:hover{background:var(--accent-soft);text-decoration:none}
+nav.toc ul a{color:var(--text-2);padding-left:30px;font-size:13px}
+nav.toc .num{color:var(--text-2);min-width:14px;font-variant-numeric:tabular-nums}
+nav.toc summary{display:none}
+nav.toc .toc-title{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-2);font-weight:600;margin:0 8px 8px}
+
+main{min-width:0}
+.search{position:sticky;top:env(safe-area-inset-top,0px);z-index:2;background:var(--bg);padding-block:8px 12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.search input{flex:1 1 260px;min-width:0;font:inherit;font-size:16px;color:var(--text);background:var(--card);border:1px solid var(--sep);border-radius:12px;padding:10px 14px}
+.search .found{color:var(--text-2);font-size:14px}
+
+.sec{background:var(--card);border-radius:18px;padding:22px 26px;margin-bottom:18px}
+.sec h2{font-size:24px;line-height:1.25;letter-spacing:-.01em;margin:0 0 12px;display:flex;gap:12px;align-items:baseline;text-wrap:balance}
+.sec h2 .num{color:var(--accent);font-variant-numeric:tabular-nums;font-size:18px;font-weight:600}
+.sec h2 .num:empty{display:none}
+.item{padding-top:6px}
+.item+.item{border-top:1px solid var(--sep);margin-top:14px;padding-top:16px}
+.lead-item:empty{display:none}
+.lead-item:empty+.item{border-top:0;margin-top:0;padding-top:6px}
+h3{font-size:18px;line-height:1.3;margin:0 0 8px;text-wrap:balance}
+p{margin:0 0 10px;max-width:72ch}
+ul,ol{margin:0 0 12px;padding-left:22px;max-width:72ch}
+li{margin:3px 0}
+li::marker{color:var(--text-2)}
+code{font-family:var(--mono);font-size:.88em;background:var(--code);padding:1px 6px;border-radius:6px;word-break:break-word}
+strong{font-weight:650}
+
+.tablewrap{overflow-x:auto;margin:6px 0 14px;border:1px solid var(--sep);border-radius:12px}
+table{border-collapse:collapse;width:100%;font-size:14.5px;line-height:1.45}
+th,td{text-align:left;vertical-align:top;padding:9px 12px;border-bottom:1px solid var(--sep)}
+tr:last-child td{border-bottom:0}
+th{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-2);font-weight:600;background:var(--code)}
+
+figure.tpl{margin:6px 0 16px;background:var(--accent-soft);border-radius:14px;padding:14px 16px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:start}
+figure.tpl blockquote{margin:0;line-height:1.55}
+button.copy{font:inherit;font-size:13px;font-weight:600;color:var(--accent);background:var(--card);border:1px solid var(--sep);border-radius:99px;padding:6px 12px;cursor:pointer;white-space:nowrap}
+button.copy:hover{border-color:var(--accent)}
+button.copy.done{color:var(--green);border-color:var(--green)}
+mark{background:var(--mark);color:inherit;border-radius:3px;padding:0 1px}
+.empty{color:var(--text-2);padding:24px 4px}
+footer{color:var(--text-2);font-size:13px;margin-top:28px}
+
+@media (max-width:900px){
+  .layout{grid-template-columns:minmax(0,1fr);gap:8px}
+  nav.toc{position:static;max-height:none;overflow:visible;padding:0}
+  nav.toc details{background:var(--card);border-radius:14px;padding:4px 8px}
+  nav.toc summary{display:block;cursor:pointer;font-weight:600;padding:10px 8px;list-style-position:inside}
+  nav.toc .toc-title{display:none}
+  nav.toc details>ol{padding-bottom:8px}
+}
+@media (max-width:520px){
+  .wrap{padding-inline:16px}
+  .sec{padding:18px 16px;border-radius:16px}
+  figure.tpl{grid-template-columns:minmax(0,1fr)}
+  button.copy{justify-self:start}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="eyebrow">Shifr SMS · для сотрудников поддержки</div>
+    <h1>{{TITLE}}</h1>
+    {{INTRO}}
+  </header>
+
+  <div class="layout">
+    <nav class="toc" aria-label="Содержание">
+      <details id="toc-details" open>
+        <summary>Содержание</summary>
+        <div class="toc-title">Содержание</div>
+        <ol>
+{{TOC}}
+        </ol>
+      </details>
+    </nav>
+
+    <main>
+      <div class="search">
+        <input id="q" type="search" placeholder="Поиск: «платёж», «Другой номер», «Telegram»…" autocomplete="off" aria-label="Поиск по руководству">
+        <span class="found" id="found" hidden></span>
+      </div>
+      <div id="content">
+{{BODY}}
+      </div>
+      <div class="empty" id="empty" hidden>Ничего не нашлось. Попробуйте другое слово — например, название кнопки бота.</div>
+      <footer>Шаблоны ответов можно копировать кнопкой «Скопировать» и вставлять в тему обращения. Подставьте имя вместо {имя}.</footer>
+    </main>
+  </div>
+</div>
+
+<script>
+(() => {
+  // на телефоне оглавление свёрнуто, на компьютере — всегда открыто
+  const det = document.getElementById("toc-details");
+  const mq = window.matchMedia("(max-width:900px)");
+  const syncToc = () => { det.open = !mq.matches; };
+  syncToc();
+  mq.addEventListener ? mq.addEventListener("change", syncToc) : mq.addListener(syncToc);
+  det.querySelectorAll("a").forEach(a => a.addEventListener("click", () => { if (mq.matches) det.open = false; }));
+
+  // копирование шаблонов (делегирование: при поиске разметка пунктов пересоздаётся)
+  document.getElementById("content").addEventListener("click", e => {
+    const btn = e.target.closest("button.copy");
+    if (!btn) return;
+    const quote = btn.parentElement.querySelector("blockquote");
+    const text = quote.innerText.trim();
+    const done = () => { btn.textContent = "Скопировано"; btn.classList.add("done");
+      setTimeout(() => { btn.textContent = "Скопировать"; btn.classList.remove("done"); }, 1600); };
+    const fallback = () => { const r = document.createRange(); r.selectNodeContents(quote);
+      const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); btn.textContent = "Выделено — скопируйте"; };
+    try { navigator.clipboard.writeText(text).then(done, fallback); } catch (err) { fallback(); }
+  });
+
+  // поиск: показываем только пункты, где есть все слова запроса
+  const q = document.getElementById("q"), found = document.getElementById("found"), empty = document.getElementById("empty");
+  const items = [...document.querySelectorAll("#content .item")];
+  items.forEach(it => { it.dataset.html = it.innerHTML; it.dataset.text = it.textContent.toLowerCase().replace(/ё/g, "е"); });
+  const secs = [...document.querySelectorAll("#content .sec")];
+  const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  function mark(node, re) {
+    const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
+    const texts = []; while (walker.nextNode()) texts.push(walker.currentNode);
+    texts.forEach(t => {
+      if (!re.test(t.data)) return; re.lastIndex = 0;
+      const span = document.createElement("span");
+      span.innerHTML = t.data.replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c])).replace(re, m => `<mark>${m}</mark>`);
+      t.replaceWith(...span.childNodes);
+    });
+  }
+  let timer;
+  q.addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(run, 120); });
+  function run() {
+    const words = q.value.toLowerCase().replace(/ё/g, "е").split(/\s+/).filter(w => w.length > 1);
+    let shown = 0;
+    items.forEach(it => {
+      it.innerHTML = it.dataset.html;
+      const hit = !words.length || words.every(w => it.dataset.text.includes(w));
+      it.hidden = !hit || (words.length && !it.textContent.trim());
+      if (hit && words.length && !it.hidden) {
+        shown++;
+        mark(it, new RegExp(words.map(w => esc(w).replace(/е/g, "[её]")).join("|"), "gi"));
+      }
+    });
+    secs.forEach(s => { s.hidden = words.length > 0 && !s.querySelector(".item:not([hidden])"); });
+    found.hidden = !words.length; found.textContent = words.length ? `Найдено пунктов: ${shown}` : "";
+    empty.hidden = !(words.length && !shown);
+  }
+})();
+</script>
+</body>
+</html>

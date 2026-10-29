@@ -1,0 +1,63 @@
+{# Таблица по страницам с поиском: под таблицей есть другие разделы, поэтому не бесконечная прокрутка,
+   а по TABLE_PAGE строк. Поиск и переключение меняют только саму таблицу — страница не перезагружается.
+   {% import "_paged.html" as pg %}; таблица — {% call pg.box(адрес_фрагмента, "Поиск…") %}…{% endcall %};
+   внутри фрагмента под таблицей — {{ pg.pager(t) }}; один раз на странице — {{ pg.assets() }}. #}
+
+{% macro box(src, placeholder="Поиск") -%}
+<div class="paged" data-src="{{ src }}">
+  <input type="search" class="paged-q" placeholder="{{ placeholder }}" autocomplete="off" spellcheck="false">
+  <div class="paged-body">{{ caller() }}</div>
+</div>
+{%- endmacro %}
+
+{% macro pager(t) -%}
+{% if t.pages > 1 or t.q %}
+<div class="pager">
+  <button type="button" class="secondary" data-page="{{ t.page - 1 }}" {{ 'disabled' if t.page <= 1 }}>← Назад</button>
+  <span class="muted">{% if t.total %}{{ t.page }} из {{ t.pages }} · {{ t.total }} {{ 'найдено' if t.q else 'всего' }}{% else %}ничего не найдено{% endif %}</span>
+  <button type="button" class="secondary" data-page="{{ t.page + 1 }}" {{ 'disabled' if t.page >= t.pages }}>Вперёд →</button>
+</div>
+{% endif %}
+{%- endmacro %}
+
+{% macro assets() -%}
+<style>
+.paged-q{width:100%;max-width:360px;margin-bottom:10px}
+.pager{display:flex;align-items:center;justify-content:center;gap:12px;margin-top:10px;font-size:14px;flex-wrap:wrap}
+.pager button{padding:6px 14px;font-size:14px}
+.paged-body.loading{opacity:.5;transition:opacity .15s}
+</style>
+<script>
+(() => {
+  if (window.pagedReady) return;  // один раз на страницу
+  window.pagedReady = true;
+  const load = async (box, page) => {
+    const body = box.querySelector(".paged-body"), q = box.querySelector(".paged-q").value.trim();
+    const my = (box.seq = (box.seq || 0) + 1);
+    body.classList.add("loading");
+    try {
+      const url = box.dataset.src + "?page=" + page + "&q=" + encodeURIComponent(q);
+      const r = await fetch(url, {credentials: "same-origin"});
+      if (r.redirected && r.url.includes("/login")) { location.reload(); return; }
+      const html = await r.text();
+      if (my === box.seq) body.innerHTML = html;
+    } catch (e) {
+      if (my === box.seq) body.insertAdjacentHTML("afterbegin", '<p class="bad">Не удалось загрузить — проверьте связь.</p>');
+    } finally {
+      if (my === box.seq) body.classList.remove("loading");
+    }
+  };
+  let timer = null;
+  document.addEventListener("input", e => {
+    const box = e.target.closest(".paged");
+    if (!box || !e.target.classList.contains("paged-q")) return;
+    clearTimeout(timer);
+    timer = setTimeout(() => load(box, 1), 300);
+  });
+  document.addEventListener("click", e => {
+    const btn = e.target.closest(".paged [data-page]");
+    if (btn && !btn.disabled) load(btn.closest(".paged"), +btn.dataset.page);
+  });
+})();
+</script>
+{%- endmacro %}

@@ -1,0 +1,32 @@
+{# «Сверка» → переводы из кошелька (страница таблицы) #}
+{% import "_paged.html" as pg %}
+<div class="tablewrap"><table>
+  <tr><th>#</th><th>Дата ({{ tz_label() }})</th><th>Что</th><th class="num">Сумма</th><th class="num">Комиссия</th><th class="num">Ушло</th><th>Куда</th><th>Статус</th></tr>
+  {% for p in t.rows %}
+  <tr>
+    <td>{{ p.id }}</td>
+    <td>{{ p.created_at|msk }}</td>
+    <td>{{ purposes[p.purpose] }}{% if p.provider %} · {{ provider_titles[p.provider] }}{% endif %}
+      {% if p.account %}<div class="muted small">{{ names[(p.account, p.account_id)] }}{{ ' (реферал)' if p.account == 'ref' }}</div>{% endif %}
+      {% if p.actor and p.actor != names.get((p.account, p.account_id)) %}<div class="muted small">{{ p.actor }}</div>{% endif %}</td>
+    <td class="num">{{ p.amount_usd|usd }}</td>
+    <td class="num muted">{{ p.fee_usd|usd if p.fee_usd else '' }}{% if p.fee_trx %}<div class="small">{{ '%.2f' % p.fee_trx }} TRX</div>{% endif %}</td>
+    <td class="num">{{ p.send_usd|usd }}</td>
+    <td class="addr">{{ p.address[:6] }}…{{ p.address[-4:] }}</td>
+    <td><span class="badge {{ p.status }}">{{ statuses[p.status] }}</span>
+      {% if p.txid and p.status in ('signed', 'done', 'failed') %}<a href="{{ tx_url(p.txid) }}" target="_blank" rel="noopener" class="small"> в сети ↗</a>{% endif %}
+      {% if p.purpose == 'provider' and p.status == 'done' %}<div class="small {{ 'ok' if p.credited_at else 'warn' }}">{{ 'зачислено площадкой' if p.credited_at else 'ждём зачисления площадкой' }}</div>{% endif %}
+      {% if p.note and p.status != 'done' %}<div class="muted small">{{ p.note }}</div>{% endif %}
+      {% if is_owner and p.status == 'queued' and not p.txid %}
+      <form method="post" action="{{ A }}/reconcile/payouts/{{ p.id }}/cancel" onsubmit="return confirm('Отменить перевод #{{ p.id }}?')">
+        <button class="danger" style="padding:3px 10px;font-size:12px;margin-top:4px">Отменить</button></form>{% endif %}
+      {% if is_owner and p.purpose == 'provider' and p.status == 'done' and not p.credited_at %}
+      <form method="post" action="{{ A }}/reconcile/payouts/{{ p.id }}/credited">
+        <button class="secondary" style="padding:3px 10px;font-size:12px;margin-top:4px">Зачислено</button></form>{% endif %}
+    </td>
+  </tr>
+  {% else %}
+  <tr><td colspan="8" class="muted">{{ 'Ничего не найдено' if t.q else 'Переводов ещё не было' }}</td></tr>
+  {% endfor %}
+</table></div>
+{{ pg.pager(t) }}
